@@ -103,6 +103,78 @@ namespace KwiatLuxeRESTAPI.Controllers
             }
             return false;
         }
-    }
 
+        [Authorize]
+        [HttpPost("refreshToken")]
+        public async Task<IActionResult> RefreshAccessToken(IConfiguration config)
+        {
+            var claimCurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (claimCurrentUserId == null) { return Unauthorized("No user ID claim found."); }
+            int parsedClaimId = int.Parse(claimCurrentUserId?.Value);
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == parsedClaimId);
+            if (user == null) return Unauthorized("User not found.");
+            var token = GenerateJwtToken(user, config);
+            Response.Cookies.Append("Identity", token, new CookieOptions
+            {
+                HttpOnly = true,
+                IsEssential = true,
+                Secure = false,
+                SameSite = SameSiteMode.Strict,
+                Domain = "localhost",
+                Expires = DateTime.UtcNow.AddDays(1)
+            });
+            return Ok("Token Refreshed");
+        }
+
+        [Authorize]
+        [HttpPost("logout")]
+        public IActionResult ClearCookiesLogOut()
+        {
+            Response.Cookies.Delete("Identity", new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = false,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddDays(-1)
+            });
+            return Ok("Logged out and cleared Cookies");
+        }
+
+        [HttpGet("CurrentUser")]
+        [Authorize]
+        public async Task<IActionResult> getCurrentUser()
+        {
+            var claimCurrentUsername = User.FindFirst(ClaimTypes.Name);
+            var claimCurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier);
+            var claimCurrentUserEmail = User.FindFirst(ClaimTypes.Email);
+            var claimCurrentUserRole = User.FindFirst(ClaimTypes.Role);
+
+            var currentUsername = claimCurrentUsername?.Value;
+            var currentUserEmail = claimCurrentUserEmail?.Value;
+            var currentUserIdstr = claimCurrentUserId?.Value;
+            var currentUserRole = claimCurrentUserRole?.Value;
+
+            if (currentUserIdstr == null || currentUsername == null || currentUserRole == null || currentUserEmail == null)
+            {
+                return BadRequest("Unauthenticated or user not found");
+            }
+
+            int currentUserId = int.Parse(claimCurrentUserId?.Value);
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == currentUserId);
+            if (user == null)
+            {
+                return BadRequest("Unauthenticated or user not found");
+            }
+
+            var currentUserDTO = new UserDTO
+            {
+                Id = currentUserId,
+                Username = currentUsername,
+                Email = currentUserEmail,
+                Role = currentUserRole
+            };
+            return Ok(currentUserDTO);
+        }
+
+    }
 }
