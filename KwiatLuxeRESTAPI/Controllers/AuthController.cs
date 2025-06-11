@@ -1,9 +1,11 @@
 ﻿using KwiatLuxeRESTAPI.DTOs;
-using KwiatLuxeRESTAPI.DTOs;
 using KwiatLuxeRESTAPI.Models;
 using KwiatLuxeRESTAPI.Services.Security;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
 

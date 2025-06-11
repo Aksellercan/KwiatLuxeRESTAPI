@@ -2,6 +2,7 @@ using KwiatLuxeRESTAPI.Services.Logger;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
+using Microsoft.EntityFrameworkCore;
 using System.Text;
 
 namespace KwiatLuxeRESTAPI
@@ -87,11 +88,42 @@ namespace KwiatLuxeRESTAPI
         };
     });
 
+            builder.Services.Configure<CookiePolicyOptions>(options =>
+            {
+                options.CheckConsentNeeded = context => true;
+                options.MinimumSameSitePolicy = SameSiteMode.None;
+            });
+
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                // Cookie settings
+                options.Cookie.HttpOnly = true;
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
+
+            });
+
+            // Cors testing
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll",
+                    policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+            });
+
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
+
+            builder.Services.AddAuthorization();
+
+
+            // Cors middleware
+            app.UseCors("AllowAll");
+
+            // Middleware for authentication and authorization
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
