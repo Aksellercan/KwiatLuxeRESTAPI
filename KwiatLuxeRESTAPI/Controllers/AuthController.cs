@@ -25,7 +25,6 @@ namespace KwiatLuxeRESTAPI.Controllers
             _config = config;
         }
 
-
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] UserRegisterDTO userRegister)
         {
@@ -37,7 +36,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                 Username = userRegister.Username,
                 Password = userRegister.Password,
                 Salt = saltBase64tring,
-                Role = userRegister.Role,
+                Role =  "Customer",
                 Email = userRegister.Email
             };
             user.Password = _passwordService.HashPassword(userRegister.Password, salt);
@@ -94,7 +93,8 @@ namespace KwiatLuxeRESTAPI.Controllers
             //});
             //return Ok("Logged in Successfully");
 
-            return Ok(token);
+            //return Ok(token);
+            return Ok(new { token });
         }
 
         private bool compareHashPassword(string enteredPassword, string userPassword, byte[] salt)
@@ -126,7 +126,8 @@ namespace KwiatLuxeRESTAPI.Controllers
             //    Expires = DateTime.UtcNow.AddDays(1)
             //});
             //return Ok("Token Refreshed");
-            return Ok(token);
+            //return Ok(token);
+            return Ok(new { token });
         }
 
         //[Authorize]
