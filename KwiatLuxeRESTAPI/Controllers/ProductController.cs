@@ -41,15 +41,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             {
                 return NotFound($"Product with ID {id} not found.");
             }
-            var ProductDTO = new ProductDTO
-            {
-                Id = product.Id,
-                ProductName = product.ProductName,
-                ProductDescription = product.ProductDescription,
-                ProductPrice = product.ProductPrice,
-                FileImageUrl = product.FileImageUrl
-            };
-            return Ok(ProductDTO);
+            return Ok(product);
         }
 
         [HttpPost("add")]
@@ -68,7 +60,38 @@ namespace KwiatLuxeRESTAPI.Controllers
             };
             _db.Products.Add(product);
             await _db.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetProductById), new { id = product.Id }, product);
+            return Created($"/add/{product.Id}", product);
+        }
+
+        [HttpDelete("delete/{id}")]
+        public async Task<IActionResult> DeleteProduct([FromRoute] int id) 
+        {
+            //check if product to delete exists
+            var deleteProduct = await _db.Products.FindAsync(id);
+            if (deleteProduct == null) return NotFound($"Product with id {id} does not exist.");
+            _db.Remove(deleteProduct);
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpPut("update/{id}")]
+        public async Task<IActionResult> UpdateProduct([FromRoute] int id, [FromBody] ProductDTO productDTO)
+        {
+            //check if product to update exists
+            var updateProduct = await _db.Products.FindAsync(id);
+            if (updateProduct == null) return NotFound($"Product with id {id} does not exist.");
+            updateProduct.ProductName = productDTO.ProductName;
+            if (productDTO.ProductDescription != null)
+            {
+                updateProduct.ProductDescription = productDTO.ProductDescription;
+            }
+            updateProduct.ProductPrice = productDTO.ProductPrice;
+            if (productDTO.FileImageUrl != null)
+            {
+                updateProduct.FileImageUrl = productDTO.FileImageUrl;
+            }
+            await _db.SaveChangesAsync();
+            return Ok(updateProduct);
         }
     }
 }
