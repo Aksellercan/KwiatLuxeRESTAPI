@@ -62,7 +62,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                 claims: new List<Claim>
                 {
                 new Claim(ClaimTypes.Name, user.Username),
-                //new Claim(ClaimTypes.Email, user.Mail),
+                new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Role, user.Role),
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 },
@@ -83,16 +83,18 @@ namespace KwiatLuxeRESTAPI.Controllers
             if (!compareHashPassword(userLogin.Password, user.Password, salt)) return Unauthorized();
 
             var token = GenerateJwtToken(user, config);
-            Response.Cookies.Append("Identity", token, new CookieOptions
-            {
-                HttpOnly = true,
-                IsEssential = true,
-                Secure = false,
-                SameSite = SameSiteMode.Strict,
-                Domain = "localhost",
-                Expires = DateTime.UtcNow.AddDays(1)
-            });
-            return Ok("Logged in Successfully");
+            //Response.Cookies.Append("Identity", token, new CookieOptions
+            //{
+            //    HttpOnly = true,
+            //    IsEssential = true,
+            //    Secure = false,
+            //    SameSite = SameSiteMode.Strict,
+            //    Domain = "localhost",
+            //    Expires = DateTime.UtcNow.AddDays(1)
+            //});
+            //return Ok("Logged in Successfully");
+
+            return Ok(token);
         }
 
         private bool compareHashPassword(string enteredPassword, string userPassword, byte[] salt)
@@ -114,31 +116,32 @@ namespace KwiatLuxeRESTAPI.Controllers
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == parsedClaimId);
             if (user == null) return Unauthorized("User not found.");
             var token = GenerateJwtToken(user, config);
-            Response.Cookies.Append("Identity", token, new CookieOptions
-            {
-                HttpOnly = true,
-                IsEssential = true,
-                Secure = false,
-                SameSite = SameSiteMode.Strict,
-                Domain = "localhost",
-                Expires = DateTime.UtcNow.AddDays(1)
-            });
-            return Ok("Token Refreshed");
+            //Response.Cookies.Append("Identity", token, new CookieOptions
+            //{
+            //    HttpOnly = true,
+            //    IsEssential = true,
+            //    Secure = false,
+            //    SameSite = SameSiteMode.Strict,
+            //    Domain = "localhost",
+            //    Expires = DateTime.UtcNow.AddDays(1)
+            //});
+            //return Ok("Token Refreshed");
+            return Ok(token);
         }
 
-        [Authorize]
-        [HttpPost("logout")]
-        public IActionResult ClearCookiesLogOut()
-        {
-            Response.Cookies.Delete("Identity", new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = false,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(-1)
-            });
-            return Ok("Logged out and cleared Cookies");
-        }
+        //[Authorize]
+        //[HttpPost("logout")]
+        //public IActionResult ClearCookiesLogOut()
+        //{
+        //    Response.Cookies.Delete("Identity", new CookieOptions
+        //    {
+        //        HttpOnly = true,
+        //        Secure = false,
+        //        SameSite = SameSiteMode.Strict,
+        //        Expires = DateTime.UtcNow.AddDays(-1)
+        //    });
+        //    return Ok("Logged out and cleared Cookies");
+        //}
 
         [HttpGet("CurrentUser")]
         [Authorize]
