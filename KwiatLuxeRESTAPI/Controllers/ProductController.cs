@@ -2,6 +2,7 @@
 using KwiatLuxeRESTAPI.Models;
 using KwiatLuxeRESTAPI.DTOs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace KwiatLuxeRESTAPI.Controllers
 {
@@ -45,6 +46,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpPost("add")]
+        [Authorize]
         public async Task<IActionResult> AddProduct([FromBody] ProductDTO productDto)
         {
             if (productDto == null)
@@ -64,6 +66,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpDelete("delete/{id}")]
+        [Authorize]
         public async Task<IActionResult> DeleteProduct([FromRoute] int id) 
         {
             //check if product to delete exists
@@ -75,6 +78,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpPut("update/{id}")]
+        [Authorize]
         public async Task<IActionResult> UpdateProduct([FromRoute] int id, [FromBody] ProductDTO productDTO)
         {
             //check if product to update exists
