@@ -55,10 +55,26 @@ namespace KwiatLuxeRESTAPI
                       .HasForeignKey(op => op.ProductId);
             });
 
-            //modelBuilder.Entity<Cart>(entity =>
-            //{
-            //    ent
-            //});
+            modelBuilder.Entity<Cart>(entity =>
+            {
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.TotalAmount).HasColumnType("decimal(18,2)");
+                entity.HasOne(c => c.User)
+                      .WithOne(c => c.Cart)
+                      .HasForeignKey<Cart>(c => c.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CartProduct>(entity =>
+            {
+                entity.HasKey(cp => new { cp.CartId, cp.ProductId });
+                entity.HasOne(cp => cp.Cart)
+                      .WithMany(c => c.CartProducts)
+                      .HasForeignKey(cp => cp.CartId);
+                entity.HasOne(cp => cp.Product)
+                      .WithMany(p => p.CartProducts)
+                      .HasForeignKey(cp => cp.ProductId);
+            });
         }
     }
 }
