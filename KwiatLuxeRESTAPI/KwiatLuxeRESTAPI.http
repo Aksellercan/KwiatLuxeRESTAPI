@@ -1,7 +1,0 @@
-@KwiatLuxeRESTAPI_HostAddress = https://localhost:7272
-
-GET {{KwiatLuxeRESTAPI_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
-

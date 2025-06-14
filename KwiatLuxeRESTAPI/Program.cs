@@ -14,6 +14,8 @@ namespace KwiatLuxeRESTAPI
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            Logger.setDebugOutput(true); //set Debug output to console
+
             // Add services to the container.
 
             builder.Services.AddControllers();

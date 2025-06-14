@@ -1,6 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using KwiatLuxeRESTAPI.DTOs;
 using KwiatLuxeRESTAPI.Models;
-using KwiatLuxeRESTAPI.DTOs;
+using KwiatLuxeRESTAPI.Services.Data;
+using KwiatLuxeRESTAPI.Services.Logger;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using System.Security.Claims;
 
 namespace KwiatLuxeRESTAPI.Controllers
 {
@@ -9,30 +14,33 @@ namespace KwiatLuxeRESTAPI.Controllers
     public class OrderController : ControllerBase
     {
         private readonly KwiatLuxeDb _db;
+        private UserInformation _userInformation = new UserInformation();
 
         public OrderController(KwiatLuxeDb db)
         {
             _db = db;
         }
 
-        [HttpPost("order")]
+        [HttpPost("placeorder")]
+        [Authorize]
         public async Task<IActionResult> PlaceOrder([FromBody] OrderDTO orderDto)
         {
             if (orderDto == null || orderDto.OrderProduct == null || !orderDto.OrderProduct.Any())
             {
                 return BadRequest("Order data is invalid.");
             }
-            var user = await _db.Users.FindAsync(orderDto.UserId);
-            if (user == null)
+            int userId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            if (userId == -1)
             {
-                return NotFound($"User with ID {orderDto.UserId} not found.");
+                return NotFound($"User with ID {userId} not found.");
             }
             var order = new Order
             {
-                UserId = user.Id,
+                UserId = userId,
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = orderDto.TotalAmount
             };
+            Logger.Log(Severity.DEBUG, $"UserId: {order.UserId}, OrderDate: {order.OrderDate}, TotalAmount: {order.TotalAmount}");
             _db.Orders.Add(order);
             await _db.SaveChangesAsync();
             foreach (var product in orderDto.OrderProduct)

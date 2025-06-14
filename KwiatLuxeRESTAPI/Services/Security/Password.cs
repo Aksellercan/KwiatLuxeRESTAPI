@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using System.Security.Cryptography;
+using KwiatLuxeRESTAPI.Services.Logger;
 
 namespace KwiatLuxeRESTAPI.Services.Security
 {
