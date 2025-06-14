@@ -11,7 +11,7 @@
             return int.Parse(nameIdentifier);
         }
 
-        public string GetCurrentUsername(string name)
+        public string? GetCurrentUsername(string name)
         {
             if (name == null)
             {
