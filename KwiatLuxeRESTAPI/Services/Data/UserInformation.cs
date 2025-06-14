@@ -2,7 +2,7 @@
 {
     public class UserInformation
     {
-        public int GetCurrentUserId(string nameIdentifier) 
+        public int GetCurrentUserId(string? nameIdentifier) 
         {
             if (nameIdentifier == null) 
             {
@@ -11,7 +11,7 @@
             return int.Parse(nameIdentifier);
         }
 
-        public string? GetCurrentUsername(string name)
+        public string? GetCurrentUsername(string? name)
         {
             if (name == null)
             {
@@ -20,7 +20,7 @@
             return name;
         }
 
-        public bool IsAdmin(string role) 
+        public bool IsAdmin(string? role) 
         {
             if (role != null || role != "Admin") 
             {

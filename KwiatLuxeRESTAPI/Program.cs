@@ -14,17 +14,16 @@ namespace KwiatLuxeRESTAPI
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            Logger.setDebugOutput(true); //set Debug output to console
+            //set Debug output to console
+            Logger.setDebugOutput(true);
 
             // Add services to the container.
-
             builder.Services.AddControllers();
 
             //swagger configuration
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "KwiatLuxe API", Version = "v1" });
-
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
@@ -33,98 +32,94 @@ namespace KwiatLuxeRESTAPI
                     Type = SecuritySchemeType.ApiKey,
                     Scheme = "Bearer"
                 });
-
                 c.AddSecurityRequirement(new OpenApiSecurityRequirement()
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                },
-                Scheme = "oauth2",
-                Name = "Bearer",
-                In = ParameterLocation.Header,
-
-            },
-            new List<string>()
-        }
-    });
+                {
+                    { 
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference 
+                            {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                            },
+                            Scheme = "oauth2",
+                            Name = "Bearer",
+                            In = ParameterLocation.Header,
+                        },
+                        new List<string>()
+                    }
+                });
             });
-
             //end configuration for swagger
 
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
             builder.Services.AddDbContext<KwiatLuxeDb>(opt => opt.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
-
-            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-        };
-        options.Events = new JwtBearerEvents
-        {
-            OnAuthenticationFailed = context =>
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
             {
-                if (!context.Response.HasStarted)
+                options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    context.Response.StatusCode = 401;
-                    context.Response.ContentType = "application/json";
-                    var result = JsonConvert.SerializeObject(new { error = "Authentication failed! Try again..." });
-                    Logger.Log(Severity.ERROR, "Authentication failed: " + context.Exception.Message);
-                    return context.Response.WriteAsync(result);
-                }
-                return Task.CompletedTask;
-            },
-            OnTokenValidated = context =>
-            {
-                Logger.Log(Severity.INFO, "Token Validated");
-                return Task.CompletedTask;
-            },
-            OnMessageReceived = context =>
-            {
-                var token = context.Request.Cookies["Identity"];
-                if (!string.IsNullOrEmpty(token))
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                    ValidAudience = builder.Configuration["Jwt:Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                };
+                options.Events = new JwtBearerEvents
                 {
-                    context.Token = token;
-                }
-                return Task.CompletedTask;
-            },
-            OnChallenge = context =>
-            {
-                context.HandleResponse();
-                if (!context.Response.HasStarted)
-                {
-                    context.Response.StatusCode = 401;
-                    context.Response.ContentType = "application/json";
-                    var result = JsonConvert.SerializeObject(new { error = "You are not authenticated!" });
-                    return context.Response.WriteAsync(result);
-                }
-                return Task.CompletedTask;
-            },
-            OnForbidden = context =>
-            {
-                if (!context.Response.HasStarted)
-                {
-                    context.Response.StatusCode = 403;
-                    context.Response.ContentType = "application/json";
-                    var result = JsonConvert.SerializeObject(new { error = "You don't have access to this content" });
-                    Logger.Log(Severity.ERROR, "You lack the privileges to access this content");
-                    return context.Response.WriteAsync(result);
-                }
-                return Task.CompletedTask;
-            }
-        };
-    });
+                    OnAuthenticationFailed = context =>
+                    {
+                        if (!context.Response.HasStarted)
+                        {
+                            context.Response.StatusCode = 401;
+                            context.Response.ContentType = "application/json";
+                            var result = JsonConvert.SerializeObject(new { error = "Authentication failed! Try again..." });
+                            Logger.Log(Severity.ERROR, "Authentication failed: " + context.Exception.Message);
+                            return context.Response.WriteAsync(result);
+                        }
+                        return Task.CompletedTask;
+                    },
+                    OnTokenValidated = context =>
+                    {
+                        Logger.Log(Severity.DEBUG, "Token Validated");
+                        return Task.CompletedTask;
+                    },
+                    OnMessageReceived = context =>
+                    {
+                        var token = context.Request.Cookies["Identity"];
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            context.Token = token;
+                        }
+                        return Task.CompletedTask;
+                    },
+                    OnChallenge = context =>
+                    {
+                        context.HandleResponse();
+                        if (!context.Response.HasStarted)
+                        {
+                            context.Response.StatusCode = 401;
+                            context.Response.ContentType = "application/json";
+                            var result = JsonConvert.SerializeObject(new { error = "You are not authenticated!" });
+                            return context.Response.WriteAsync(result);
+                        }
+                        return Task.CompletedTask;
+                    },
+                    OnForbidden = context =>
+                    {
+                        if (!context.Response.HasStarted)
+                        {
+                            context.Response.StatusCode = 403;
+                            context.Response.ContentType = "application/json";
+                            var result = JsonConvert.SerializeObject(new { error = "You don't have access to this content" });
+                            Logger.Log(Severity.ERROR, "You lack the privileges to access this content");
+                            return context.Response.WriteAsync(result);
+                        }
+                        return Task.CompletedTask;
+                    }
+                };
+            });
             //cookies disabled for now
             //builder.Services.Configure<CookiePolicyOptions>(options =>
             //{

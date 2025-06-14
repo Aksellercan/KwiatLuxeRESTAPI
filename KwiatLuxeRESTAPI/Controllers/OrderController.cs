@@ -32,7 +32,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             int userId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
             if (userId == -1)
             {
-                return NotFound($"User with ID {userId} not found.");
+                return NotFound($"User with id {userId} not found.");
             }
             var order = new Order
             {
@@ -64,7 +64,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             int userId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
             if (userId == -1)
             {
-                return NotFound($"User with ID {userId} not found.");
+                return NotFound($"User with id {userId} not found.");
             }
             var myOrders = await _db.Orders.Where(or => or.UserId == userId).Select(or => new
             {
@@ -81,7 +81,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         public async Task<IActionResult> CancelOrder([FromRoute] int id) 
         {
             int userId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-            if (userId == -1) return NotFound($"User with ID {userId} not found.");
+            if (userId == -1) return NotFound($"User with id {userId} not found.");
             var cancelOrder = await _db.Orders.FindAsync(id);
             if (cancelOrder == null) return NotFound($"Order with id {id} not found");
             _db.Orders.Remove(cancelOrder);

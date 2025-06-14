@@ -92,8 +92,6 @@ namespace KwiatLuxeRESTAPI.Controllers
             //    Expires = DateTime.UtcNow.AddDays(1)
             //});
             //return Ok("Logged in Successfully");
-
-            //return Ok(token);
             return Ok(new { token });
         }
 
@@ -126,7 +124,6 @@ namespace KwiatLuxeRESTAPI.Controllers
             //    Expires = DateTime.UtcNow.AddDays(1)
             //});
             //return Ok("Token Refreshed");
-            //return Ok(token);
             return Ok(new { token });
         }
 

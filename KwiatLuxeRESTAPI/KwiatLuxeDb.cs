@@ -10,6 +10,8 @@ namespace KwiatLuxeRESTAPI
         public DbSet<Product> Products { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderProduct> OrderProducts { get; set; }
+        public DbSet<Cart> Carts { get; set; }
+        public DbSet<CartProduct> CartProducts { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>(entity => 
@@ -52,6 +54,11 @@ namespace KwiatLuxeRESTAPI
                       .WithMany(p => p.OrderProducts)
                       .HasForeignKey(op => op.ProductId);
             });
+
+            //modelBuilder.Entity<Cart>(entity =>
+            //{
+            //    ent
+            //});
         }
     }
 }
