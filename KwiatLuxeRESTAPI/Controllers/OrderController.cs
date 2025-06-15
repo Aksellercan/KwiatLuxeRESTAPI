@@ -38,13 +38,20 @@ namespace KwiatLuxeRESTAPI.Controllers
             {
                 UserId = userId,
                 OrderDate = DateTime.UtcNow,
-                TotalAmount = orderDto.TotalAmount
+                TotalAmount = 0
             };
             Logger.Log(Severity.DEBUG, $"UserId: {order.UserId}, OrderDate: {order.OrderDate}, TotalAmount: {order.TotalAmount}");
             _db.Orders.Add(order);
             await _db.SaveChangesAsync();
+            decimal totalCost = 0;
             foreach (var product in orderDto.OrderProduct)
             {
+                var getProductCost = await _db.Products.FindAsync(product.ProductId);
+                if (getProductCost == null) 
+                {
+                    continue;
+                }
+                totalCost += product.Quantity * getProductCost.ProductPrice;
                 var orderProduct = new OrderProduct
                 {
                     OrderId = order.Id,
@@ -53,6 +60,11 @@ namespace KwiatLuxeRESTAPI.Controllers
                 };
                 _db.OrderProducts.Add(orderProduct);
             }
+            //test
+            Logger.Log(Severity.DEBUG, $"totalCost = {totalCost}");
+            order.TotalAmount = totalCost;
+            _db.Orders.Update(order);
+            //test
             await _db.SaveChangesAsync();
             return Ok(new { OrderId = order.Id, Message = "Order placed successfully." });
         }
