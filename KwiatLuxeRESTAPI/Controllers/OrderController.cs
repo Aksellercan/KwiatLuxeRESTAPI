@@ -23,16 +23,17 @@ namespace KwiatLuxeRESTAPI.Controllers
 
         [HttpPost("placeorder")]
         [Authorize]
-        public async Task<IActionResult> PlaceOrder([FromBody] OrderDTO orderDto)
+        public async Task<IActionResult> PlaceOrder()
         {
-            if (orderDto == null || orderDto.OrderProduct == null || !orderDto.OrderProduct.Any())
-            {
-                return BadRequest(new { Error = "Order data is invalid." });
-            }
             int userId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
             if (userId == -1)
             {
                 return NotFound(new { UserNotFound = $"User with id {userId} not found." });
+            }
+            var getUserCart = await _db.Carts.Where(c => c.UserId == userId).Select(c => new { c.CartProducts }).FirstOrDefaultAsync();
+            if (getUserCart == null) 
+            { 
+                return NotFound(new { CartNotFound = $"Cart with UserId {userId} not found." }); 
             }
             var order = new Order
             {
@@ -44,10 +45,10 @@ namespace KwiatLuxeRESTAPI.Controllers
             _db.Orders.Add(order);
             await _db.SaveChangesAsync();
             decimal totalCost = 0;
-            foreach (var product in orderDto.OrderProduct)
+            foreach (var product in getUserCart.CartProducts)
             {
                 var getProductCost = await _db.Products.FindAsync(product.ProductId);
-                if (getProductCost == null) 
+                if (getProductCost == null)
                 {
                     continue;
                 }
@@ -66,7 +67,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             _db.Orders.Update(order);
             //test
             await _db.SaveChangesAsync();
-            return Ok(new { OrderId = order.Id, Message = "Order placed successfully." });
+            return Ok(new { OrderId = order.Id, Message = "Order placed successfully." }); //Empty the cart after successful transaction
         }
 
         [HttpGet("myorders")]
