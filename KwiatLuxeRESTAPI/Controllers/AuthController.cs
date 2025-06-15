@@ -42,7 +42,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             user.Password = _passwordService.HashPassword(userRegister.Password, salt);
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
-            return Ok("User registered successfully");
+            return Ok( new { Message = "User registered successfully" });
         }
 
         private byte[] getuserSaltDB(User user)
@@ -79,7 +79,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             if (user == null) return NotFound("login error: User not found");
             // Retrieve saved Salt for comparing hashes
             byte[] salt = getuserSaltDB(user);
-            if (!compareHashPassword(userLogin.Password, user.Password, salt)) return Unauthorized();
+            if (!compareHashPassword(userLogin.Password, user.Password, salt)) return Unauthorized(new { UnAuthorized = "Wrong Login details"});
 
             var token = GenerateJwtToken(user, config);
             //Response.Cookies.Append("Identity", token, new CookieOptions
@@ -88,7 +88,6 @@ namespace KwiatLuxeRESTAPI.Controllers
             //    IsEssential = true,
             //    Secure = false,
             //    SameSite = SameSiteMode.Strict,
-            //    Domain = "localhost",
             //    Expires = DateTime.UtcNow.AddDays(1)
             //});
             //return Ok("Logged in Successfully");
@@ -109,10 +108,10 @@ namespace KwiatLuxeRESTAPI.Controllers
         public async Task<IActionResult> RefreshAccessToken(IConfiguration config)
         {
             var claimCurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier);
-            if (claimCurrentUserId == null) { return Unauthorized("No user ID claim found."); }
+            if (claimCurrentUserId == null) { return Unauthorized(new { UnAuthorized = "No user ID claim found." }); }
             int parsedClaimId = int.Parse(claimCurrentUserId?.Value);
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == parsedClaimId);
-            if (user == null) return Unauthorized("User not found.");
+            if (user == null) return Unauthorized(new { UnAuthorized = "User not found." });
             var token = GenerateJwtToken(user, config);
             //Response.Cookies.Append("Identity", token, new CookieOptions
             //{
@@ -120,7 +119,6 @@ namespace KwiatLuxeRESTAPI.Controllers
             //    IsEssential = true,
             //    Secure = false,
             //    SameSite = SameSiteMode.Strict,
-            //    Domain = "localhost",
             //    Expires = DateTime.UtcNow.AddDays(1)
             //});
             //return Ok("Token Refreshed");
@@ -138,7 +136,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         //        SameSite = SameSiteMode.Strict,
         //        Expires = DateTime.UtcNow.AddDays(-1)
         //    });
-        //    return Ok("Logged out and cleared Cookies");
+        //    return Ok(new { Message = "Logged out and cleared Cookies" });
         //}
 
         [HttpGet("CurrentUser")]
@@ -157,24 +155,21 @@ namespace KwiatLuxeRESTAPI.Controllers
 
             if (currentUserIdstr == null || currentUsername == null || currentUserRole == null || currentUserEmail == null)
             {
-                return BadRequest("Unauthenticated or user not found");
+                return Unauthorized(new { UnAuthorized = "Unauthenticated or user not found" });
             }
 
             int currentUserId = int.Parse(claimCurrentUserId?.Value);
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == currentUserId);
             if (user == null)
             {
-                return BadRequest("Unauthenticated or user not found");
+                return Unauthorized(new { UnAuthorized = "Unauthenticated or user not found" });
             }
-
-            var currentUserDTO = new UserDTO
-            {
+            return Ok(new UserDTO {
                 Id = currentUserId,
                 Username = currentUsername,
                 Email = currentUserEmail,
                 Role = currentUserRole
-            };
-            return Ok(currentUserDTO);
+            });
         }
 
     }

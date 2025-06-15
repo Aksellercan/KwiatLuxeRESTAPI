@@ -29,7 +29,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             }).ToListAsync();
             if (products == null || !products.Any())
             {
-                return NotFound("No products found.");
+                return NotFound(new { ProductNotFound = "No products found." });
             }
             return Ok(products);
         }
@@ -40,7 +40,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             var product = await _db.Products.FindAsync(id);
             if (product == null)
             {
-                return NotFound($"Product with ID {id} not found.");
+                return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
             }
             return Ok(product);
         }
@@ -71,7 +71,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         {
             //check if product to delete exists
             var deleteProduct = await _db.Products.FindAsync(id);
-            if (deleteProduct == null) return NotFound($"Product with id {id} does not exist.");
+            if (deleteProduct == null) return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
             _db.Remove(deleteProduct);
             await _db.SaveChangesAsync();
             return NoContent();
@@ -79,20 +79,26 @@ namespace KwiatLuxeRESTAPI.Controllers
 
         [HttpPut("update/{id}")]
         [Authorize]
-        public async Task<IActionResult> UpdateProduct([FromRoute] int id, [FromBody] ProductDTO productDTO)
+        public async Task<IActionResult> UpdateProduct([FromRoute] int id, [FromBody] UpdateProductDTO updateProductDto)
         {
             //check if product to update exists
             var updateProduct = await _db.Products.FindAsync(id);
-            if (updateProduct == null) return NotFound($"Product with id {id} does not exist.");
-            updateProduct.ProductName = productDTO.ProductName;
-            if (productDTO.ProductDescription != null)
+            if (updateProduct == null) return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
+            if (updateProductDto.ProductName != null) 
             {
-                updateProduct.ProductDescription = productDTO.ProductDescription;
+                updateProduct.ProductName = updateProductDto.ProductName;
             }
-            updateProduct.ProductPrice = productDTO.ProductPrice;
-            if (productDTO.FileImageUrl != null)
+            if (updateProductDto.ProductDescription != null)
             {
-                updateProduct.FileImageUrl = productDTO.FileImageUrl;
+                updateProduct.ProductDescription = updateProductDto.ProductDescription;
+            }
+            if (updateProductDto.ProductPrice != null)
+            {
+                updateProduct.ProductPrice = (decimal)updateProductDto.ProductPrice;
+            }
+            if (updateProductDto.FileImageUrl != null)
+            {
+                updateProduct.FileImageUrl = updateProductDto.FileImageUrl;
             }
             await _db.SaveChangesAsync();
             return Ok(updateProduct);
