@@ -92,22 +92,28 @@ namespace KwiatLuxeRESTAPI.Controllers
             decimal newCost = cart.TotalAmount;
             foreach (var product in cartDto.CartProduct)
             {
-                var getProductCost = await _db.Products.FindAsync(product.ProductId);
-                var cartProductbyId = await _db.CartProducts.FindAsync(product.ProductId, userId);
+                var getProductCost = await _db.Products.Where(p => p.Id == product.ProductId).FirstOrDefaultAsync();
+                var cartProductbyId = await _db.CartProducts.Where(cp => cp.CartId == cart.Id && cp.ProductId == product.ProductId).FirstOrDefaultAsync();
                 if (cartProductbyId != null)
                 {
                     Logger.Log(Severity.DEBUG, $"CartId {cartProductbyId.CartId}, ProductId {cartProductbyId.ProductId}, Quantity {cartProductbyId.Quantity}. Quantity to set {product.Quantity}.");
+                    int currentQuantity = cartProductbyId.Quantity;
                     cartProductbyId.Quantity = product.Quantity;
                     _db.CartProducts.Update(cartProductbyId);
                     if (getProductCost != null)
                     {
-                        if (cartProductbyId.Quantity > product.Quantity)
+                        int targetQuantity = product.Quantity;
+                        if (currentQuantity > targetQuantity)
                         {
-                            newCost -= (product.Quantity * getProductCost.ProductPrice);
+                            int newQuantity = currentQuantity - targetQuantity;
+                            newCost -= (newQuantity * getProductCost.ProductPrice);
+                            Logger.Log(Severity.DEBUG, $"if > newCost = {newCost}");
                         }
-                        else if (cartProductbyId.Quantity < product.Quantity || cartProductbyId.Quantity == 0)
+                        if (currentQuantity < targetQuantity)
                         {
-                            newCost += (product.Quantity * getProductCost.ProductPrice);
+                            int newQuantity = targetQuantity - currentQuantity;
+                            newCost += (newQuantity * getProductCost.ProductPrice);
+                            Logger.Log(Severity.DEBUG, $"if < newCost = {newCost}");
                         }
                     }
                     continue;
@@ -117,6 +123,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                     return NotFound(new { ProductNotFound = $"Product with ID {product.ProductId} not found." });
                 }
                 newCost += (product.Quantity * getProductCost.ProductPrice);
+                Logger.Log(Severity.DEBUG, $"newCost = {newCost}");
                 var cartProduct = new CartProduct
                 {
                     CartId = cart.Id,
