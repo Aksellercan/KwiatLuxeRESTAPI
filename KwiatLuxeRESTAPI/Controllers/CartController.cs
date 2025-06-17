@@ -139,6 +139,30 @@ namespace KwiatLuxeRESTAPI.Controllers
             return Ok(new { Message = "Added to cart successfully." });
         }
 
+        //public async IActionResult testEndpoint()
+        //{
+        //    var test = getProducts();
+        //    int count = 0;
+        //    foreach (var rpoduct in test) 
+        //    {
+        //        Logger.Log(Severity.DEBUG, $"test {count}");
+        //        count++;
+        //    }
+        //}
+
+        //public async Task<IActionResult> getProducts() 
+        //{
+        //    //return proudcts array from db and put in hashmap mapping id to product object and get the items like that O(1) fastest and least expensive
+        //    var products = await _db.Products.Select(p => new {
+        //        p.Id,
+        //        p.ProductName,
+        //        p.ProductDescription,
+        //        p.ProductPrice,
+        //        p.FileImageUrl
+        //    }).ToListAsync();
+        //    return Ok(products);
+        //}
+
         [HttpGet("mycart")]
         [Authorize]
         public async Task<IActionResult> GetMyCartItems()

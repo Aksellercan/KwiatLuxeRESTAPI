@@ -14,9 +14,10 @@ namespace KwiatLuxeRESTAPI
         {
             bool USE_COOKIES = false; //set cookie use
             var builder = WebApplication.CreateBuilder(args);
-
             //set Debug output to console
             Logger.setDebugOutput(true);
+            //set writing logs to file instead of console
+            Logger.setConsoleOutput(true);
 
             // Add services to the container.
             builder.Services.AddControllers();
