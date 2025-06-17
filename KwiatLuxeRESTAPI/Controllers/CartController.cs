@@ -44,16 +44,20 @@ namespace KwiatLuxeRESTAPI.Controllers
                 UserId = userId,
                 TotalAmount = 0
             };
+            //get products array and store in a dictionary mapping id to object
+            var products = await _db.Products.ToListAsync();
+            Dictionary<int, Product> productsDictionary = MapProducts(products);
             Logger.Log(Severity.DEBUG, $"UserId: {cart.UserId}, TotalAmount: {cart.TotalAmount}");
             _db.Carts.Add(cart);
             await _db.SaveChangesAsync();
             decimal totalCost = 0;
             foreach (var product in cartDto.CartProduct)
             {
-                var getProductCost = await _db.Products.FindAsync(product.ProductId);
-                if (getProductCost != null)
+                Product getProduct = productsDictionary[product.ProductId];
+                //var getProductCost = await _db.Products.FindAsync(product.ProductId);
+                if (getProduct != null)
                 {
-                    totalCost += product.Quantity * getProductCost.ProductPrice;
+                    totalCost += product.Quantity * getProduct.ProductPrice;
                 }
                 else { continue; }
                 var cartProduct = new CartProduct
@@ -89,10 +93,13 @@ namespace KwiatLuxeRESTAPI.Controllers
             {
                 return NotFound(new { CartNotFound = $"Cart with id {userId} not found." });
             }
+            //get products array and store in a dictionary mapping id to object
+            var products = await _db.Products.ToListAsync();
+            Dictionary<int, Product> productsDictionary = MapProducts(products);
             decimal newCost = cart.TotalAmount;
             foreach (var product in cartDto.CartProduct)
             {
-                var getProductCost = await _db.Products.Where(p => p.Id == product.ProductId).FirstOrDefaultAsync();
+                Product getProduct = productsDictionary[product.ProductId];
                 var cartProductbyId = await _db.CartProducts.Where(cp => cp.CartId == cart.Id && cp.ProductId == product.ProductId).FirstOrDefaultAsync();
                 if (cartProductbyId != null)
                 {
@@ -100,29 +107,29 @@ namespace KwiatLuxeRESTAPI.Controllers
                     int currentQuantity = cartProductbyId.Quantity;
                     cartProductbyId.Quantity = product.Quantity;
                     _db.CartProducts.Update(cartProductbyId);
-                    if (getProductCost != null)
+                    if (getProduct != null)
                     {
                         int targetQuantity = product.Quantity;
                         if (currentQuantity > targetQuantity)
                         {
                             int newQuantity = currentQuantity - targetQuantity;
-                            newCost -= (newQuantity * getProductCost.ProductPrice);
+                            newCost -= (newQuantity * getProduct.ProductPrice);
                             Logger.Log(Severity.DEBUG, $"if > newCost = {newCost}");
                         }
                         if (currentQuantity < targetQuantity)
                         {
                             int newQuantity = targetQuantity - currentQuantity;
-                            newCost += (newQuantity * getProductCost.ProductPrice);
+                            newCost += (newQuantity * getProduct.ProductPrice);
                             Logger.Log(Severity.DEBUG, $"if < newCost = {newCost}");
                         }
                     }
                     continue;
                 }
-                if (getProductCost == null) 
+                if (productsDictionary.ContainsKey(product.ProductId)) 
                 {
                     return NotFound(new { ProductNotFound = $"Product with ID {product.ProductId} not found." });
                 }
-                newCost += (product.Quantity * getProductCost.ProductPrice);
+                newCost += (product.Quantity * getProduct.ProductPrice);
                 Logger.Log(Severity.DEBUG, $"newCost = {newCost}");
                 var cartProduct = new CartProduct
                 {
@@ -139,29 +146,15 @@ namespace KwiatLuxeRESTAPI.Controllers
             return Ok(new { Message = "Added to cart successfully." });
         }
 
-        //public async IActionResult testEndpoint()
-        //{
-        //    var test = getProducts();
-        //    int count = 0;
-        //    foreach (var rpoduct in test) 
-        //    {
-        //        Logger.Log(Severity.DEBUG, $"test {count}");
-        //        count++;
-        //    }
-        //}
-
-        //public async Task<IActionResult> getProducts() 
-        //{
-        //    //return proudcts array from db and put in hashmap mapping id to product object and get the items like that O(1) fastest and least expensive
-        //    var products = await _db.Products.Select(p => new {
-        //        p.Id,
-        //        p.ProductName,
-        //        p.ProductDescription,
-        //        p.ProductPrice,
-        //        p.FileImageUrl
-        //    }).ToListAsync();
-        //    return Ok(products);
-        //}
+        private Dictionary<int, Product> MapProducts(List<Product> products) 
+        {
+            Dictionary<int, Product> productsDictionary = new Dictionary<int, Product>();
+            for (int i = 0; i < products.Count; i++) 
+            {
+                productsDictionary.Add(products[i].Id, products[i]);
+            }
+            return productsDictionary;
+        }
 
         [HttpGet("mycart")]
         [Authorize]
@@ -188,10 +181,10 @@ namespace KwiatLuxeRESTAPI.Controllers
             int userId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
             if (userId == -1) return NotFound(new { UserNotFound = $"User with id {userId} not found." });
             var removeCart = await _db.Carts.Where(c => c.UserId == userId).FirstOrDefaultAsync();
-            if (removeCart == null) return NotFound(new { OrderNotFound = $"Order with id {userId} not found" });
+            if (removeCart == null) return NotFound(new { CartNotFound = $"Cart with id {userId} not found" });
             _db.Carts.Remove(removeCart);
-            var removeAllOrderProducts = await _db.CartProducts.Where(cp => cp.CartId == removeCart.Id).ToListAsync();
-            foreach (var cartProducts in removeAllOrderProducts)
+            var removeAllCartProducts = await _db.CartProducts.Where(cp => cp.CartId == removeCart.Id).ToListAsync();
+            foreach (var cartProducts in removeAllCartProducts)
             {
                 _db.CartProducts.Remove(cartProducts);
             }

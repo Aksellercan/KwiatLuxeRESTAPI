@@ -1,5 +1,4 @@
-﻿using KwiatLuxeRESTAPI.DTOs;
-using KwiatLuxeRESTAPI.Models;
+﻿using KwiatLuxeRESTAPI.Models;
 using KwiatLuxeRESTAPI.Services.Data;
 using KwiatLuxeRESTAPI.Services.Logger;
 using Microsoft.AspNetCore.Authorization;
@@ -30,7 +29,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             {
                 return NotFound(new { UserNotFound = $"User with id {userId} not found." });
             }
-            var getUserCart = await _db.Carts.Where(c => c.UserId == userId).Select(c => new { c.CartProducts }).FirstOrDefaultAsync();
+            var getUserCart = await _db.Carts.Where(c => c.UserId == userId).Select(c => new { c.CartProducts, c.TotalAmount }).FirstOrDefaultAsync();
             if (getUserCart == null) 
             { 
                 return NotFound(new { CartNotFound = $"Cart with UserId {userId} not found." }); 
@@ -44,15 +43,8 @@ namespace KwiatLuxeRESTAPI.Controllers
             Logger.Log(Severity.DEBUG, $"UserId: {order.UserId}, OrderDate: {order.OrderDate}, TotalAmount: {order.TotalAmount}");
             _db.Orders.Add(order);
             await _db.SaveChangesAsync();
-            decimal totalCost = 0;
             foreach (var product in getUserCart.CartProducts)
             {
-                var getProductCost = await _db.Products.FindAsync(product.ProductId);
-                if (getProductCost == null)
-                {
-                    continue;
-                }
-                totalCost += product.Quantity * getProductCost.ProductPrice;
                 var orderProduct = new OrderProduct
                 {
                     OrderId = order.Id,
@@ -62,10 +54,9 @@ namespace KwiatLuxeRESTAPI.Controllers
                 _db.OrderProducts.Add(orderProduct);
             }
             //test
-            Logger.Log(Severity.DEBUG, $"totalCost = {totalCost}");
-            order.TotalAmount = totalCost;
+            Logger.Log(Severity.DEBUG, $"totalCost = {getUserCart.TotalAmount}");
+            order.TotalAmount = getUserCart.TotalAmount;
             _db.Orders.Update(order);
-            //test
             await _db.SaveChangesAsync();
             return Ok(new { OrderId = order.Id, Message = "Order placed successfully." }); //Empty the cart after successful transaction
         }

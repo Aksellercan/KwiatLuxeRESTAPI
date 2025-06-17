@@ -84,7 +84,7 @@ namespace KwiatLuxeRESTAPI
                     },
                     OnTokenValidated = context =>
                     {
-                        Logger.Log(Severity.DEBUG, "Token Validated");
+                        Logger.Log(Severity.INFO, "Token Validated");
                         return Task.CompletedTask;
                     },
                     OnMessageReceived = context =>
