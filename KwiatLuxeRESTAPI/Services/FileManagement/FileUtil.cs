@@ -39,7 +39,7 @@ namespace KwiatLuxeRESTAPI.Services.FileManagement
                 {
                     CreateFolders();
                 }
-                StreamWriter streamWriter = new(fullPath + Path.DirectorySeparatorChar + FilenameFormat() + ".txt", true);
+                StreamWriter streamWriter = new(fullPath + Path.DirectorySeparatorChar + FilenameFormat() + ".log", true);
                 if (message == null) 
                 {
                     throw new Exception("Message is null");

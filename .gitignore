@@ -5,3 +5,5 @@ KwiatLuxeRESTAPI/bin/
 KwiatLuxeRESTAPI/bin/*
 .vs/
 .vs/*
+Logs/
+Logs/*
