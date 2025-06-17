@@ -124,7 +124,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                     }
                     continue;
                 }
-                if (productsDictionary.ContainsKey(product.ProductId)) 
+                if (getProduct == null) 
                 {
                     return NotFound(new { ProductNotFound = $"Product with ID {product.ProductId} not found." });
                 }
