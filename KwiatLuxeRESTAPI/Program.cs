@@ -12,6 +12,7 @@ namespace KwiatLuxeRESTAPI
     {
         public static void Main(string[] args)
         {
+            bool USE_COOKIES = false; //set cookie use
             var builder = WebApplication.CreateBuilder(args);
 
             //set Debug output to console
@@ -120,20 +121,21 @@ namespace KwiatLuxeRESTAPI
                     }
                 };
             });
-            //cookies disabled for now
-            //builder.Services.Configure<CookiePolicyOptions>(options =>
-            //{
-            //    options.CheckConsentNeeded = context => true;
-            //    options.MinimumSameSitePolicy = SameSiteMode.None;
-            //});
+            if (USE_COOKIES)
+            {
+                builder.Services.Configure<CookiePolicyOptions>(options =>
+                {
+                    options.CheckConsentNeeded = context => true;
+                    options.MinimumSameSitePolicy = SameSiteMode.None;
+                });
 
-            //builder.Services.ConfigureApplicationCookie(options =>
-            //{
-            //    // Cookie settings
-            //    options.Cookie.HttpOnly = true;
-            //    options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
-
-            //}); 
+                builder.Services.ConfigureApplicationCookie(options =>
+                {
+                    // Cookie settings
+                    options.Cookie.HttpOnly = true;
+                    options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
+                });
+            }
 
             // Cors testing
             builder.Services.AddCors(options =>

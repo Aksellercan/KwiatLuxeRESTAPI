@@ -1,11 +1,12 @@
 ﻿using KwiatLuxeRESTAPI.DTOs;
 using KwiatLuxeRESTAPI.Models;
+using KwiatLuxeRESTAPI.Services.Data;
 using KwiatLuxeRESTAPI.Services.Security;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
@@ -18,6 +19,8 @@ namespace KwiatLuxeRESTAPI.Controllers
         private readonly KwiatLuxeDb _db;
         private readonly IConfiguration _config;
         private Password _passwordService = new Password();
+        private bool USE_COOKIES = false;
+        private UserInformation _userInformation = new UserInformation();
 
         public AuthController(KwiatLuxeDb db, IConfiguration config)
         {
@@ -82,15 +85,18 @@ namespace KwiatLuxeRESTAPI.Controllers
             if (!compareHashPassword(userLogin.Password, user.Password, salt)) return Unauthorized(new { UnAuthorized = "Wrong Login details"});
 
             var token = GenerateJwtToken(user, config);
-            //Response.Cookies.Append("Identity", token, new CookieOptions
-            //{
-            //    HttpOnly = true,
-            //    IsEssential = true,
-            //    Secure = false,
-            //    SameSite = SameSiteMode.Strict,
-            //    Expires = DateTime.UtcNow.AddDays(1)
-            //});
-            //return Ok("Logged in Successfully");
+            if (USE_COOKIES)
+            {
+                Response.Cookies.Append("Identity", token, new CookieOptions
+                {
+                    HttpOnly = true,
+                    IsEssential = true,
+                    Secure = false,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddDays(1)
+                });
+                return Ok("Logged in Successfully");
+            }
             return Ok(new { token });
         }
 
@@ -113,31 +119,35 @@ namespace KwiatLuxeRESTAPI.Controllers
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == parsedClaimId);
             if (user == null) return Unauthorized(new { UnAuthorized = "User not found." });
             var token = GenerateJwtToken(user, config);
-            //Response.Cookies.Append("Identity", token, new CookieOptions
-            //{
-            //    HttpOnly = true,
-            //    IsEssential = true,
-            //    Secure = false,
-            //    SameSite = SameSiteMode.Strict,
-            //    Expires = DateTime.UtcNow.AddDays(1)
-            //});
-            //return Ok("Token Refreshed");
+            if (USE_COOKIES)
+            {
+                Response.Cookies.Append("Identity", token, new CookieOptions
+                {
+                    HttpOnly = true,
+                    IsEssential = true,
+                    Secure = false,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddDays(1)
+                });
+                return Ok("Token Refreshed");
+            }            
             return Ok(new { token });
         }
 
-        //[Authorize]
-        //[HttpPost("logout")]
-        //public IActionResult ClearCookiesLogOut()
-        //{
-        //    Response.Cookies.Delete("Identity", new CookieOptions
-        //    {
-        //        HttpOnly = true,
-        //        Secure = false,
-        //        SameSite = SameSiteMode.Strict,
-        //        Expires = DateTime.UtcNow.AddDays(-1)
-        //    });
-        //    return Ok(new { Message = "Logged out and cleared Cookies" });
-        //}
+        [Authorize]
+        [HttpPost("logout")]
+        public IActionResult ClearCookiesLogOut()
+        {
+            if (!USE_COOKIES) return BadRequest(new { Error = $"USE_COOKIES is {USE_COOKIES}" });
+            Response.Cookies.Delete("Identity", new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = false,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddDays(-1)
+            });
+            return Ok(new { Message = "Logged out and cleared Cookies" });
+        }
 
         [HttpGet("CurrentUser")]
         [Authorize]
@@ -170,6 +180,18 @@ namespace KwiatLuxeRESTAPI.Controllers
                 Email = currentUserEmail,
                 Role = currentUserRole
             });
+        }
+        [HttpGet("isadmin")]
+        [Authorize (Roles="Admin")]
+        public IActionResult isAdmin() 
+        {
+            var adminClaim = _userInformation.IsAdmin(User.FindFirst(ClaimTypes.Role)?.Value);
+            if (adminClaim) 
+            {
+                return Ok(new { isAdmin = "Admin role verified"});
+            }
+            var CurrentRole = _userInformation.getCurrentUserRole(User.FindFirst(ClaimTypes.Role)?.Value);
+            return Unauthorized(new { UnAuthorized = $"Admin Role can not be verified. isAdmin = {CurrentRole}"});
         }
 
     }

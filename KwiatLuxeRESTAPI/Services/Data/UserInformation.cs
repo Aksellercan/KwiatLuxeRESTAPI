@@ -20,6 +20,16 @@
             return name;
         }
 
+        public string? getCurrentUserRole(string? role) 
+        {
+            if (role == null) 
+            {
+                return null; 
+            }
+
+            return role;
+        }
+
         public bool IsAdmin(string? role) 
         {
             if (role != null || role != "Admin") 
