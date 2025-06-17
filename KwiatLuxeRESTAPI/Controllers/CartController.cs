@@ -54,7 +54,6 @@ namespace KwiatLuxeRESTAPI.Controllers
             foreach (var product in cartDto.CartProduct)
             {
                 Product getProduct = productsDictionary[product.ProductId];
-                //var getProductCost = await _db.Products.FindAsync(product.ProductId);
                 if (getProduct != null)
                 {
                     totalCost += product.Quantity * getProduct.ProductPrice;
