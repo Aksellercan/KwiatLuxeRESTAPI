@@ -152,10 +152,12 @@ namespace KwiatLuxeRESTAPI
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            builder.Services.AddAuthorization(options => 
+            {
+                options.AddPolicy("RefreshToken", policy => policy.RequireClaim("Purpose"));
+            });
+
             var app = builder.Build();
-
-            builder.Services.AddAuthorization();
-
 
             // Cors middleware
             app.UseCors("AllowAll");
