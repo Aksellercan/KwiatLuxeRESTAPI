@@ -22,6 +22,9 @@ namespace KwiatLuxeRESTAPI
             // Add services to the container.
             builder.Services.AddControllers();
 
+            //use memory caching
+            builder.Services.AddMemoryCache();
+
             //swagger configuration
             builder.Services.AddSwaggerGen(c =>
             {

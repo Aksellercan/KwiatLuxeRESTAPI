@@ -3,6 +3,8 @@ using KwiatLuxeRESTAPI.Models;
 using KwiatLuxeRESTAPI.DTOs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Caching.Memory;
+using KwiatLuxeRESTAPI.Services.Logger;
 
 namespace KwiatLuxeRESTAPI.Controllers
 {
@@ -11,38 +13,50 @@ namespace KwiatLuxeRESTAPI.Controllers
     public class ProductController : ControllerBase
     {
         private readonly KwiatLuxeDb _db;
+        private readonly IMemoryCache _memoryCache;
 
-        public ProductController(KwiatLuxeDb db)
+        public ProductController(KwiatLuxeDb db, IMemoryCache memoryCache)
         {
             _db = db;
+            _memoryCache = memoryCache;
         }
 
         [HttpGet("getAll")]
         public async Task<IActionResult> GetAllProducts()
         {
-            var products = await _db.Products.Select(p => new {
+            var productsArray = await _db.Products.Select(p => new {
                 p.Id,
                 p.ProductName,
                 p.ProductDescription,
                 p.ProductPrice,
                 p.FileImageUrl
             }).ToListAsync();
-            if (products == null || !products.Any())
+            if (productsArray == null || !productsArray.Any())
             {
                 return NotFound(new { ProductNotFound = "No products found." });
             }
-            return Ok(products);
+            return Ok(productsArray);
         }
 
         [HttpGet("get/{id}")]
         public async Task<IActionResult> GetProductById(int id)
         {
-            var product = await _db.Products.FindAsync(id);
-            if (product == null)
+            Product cacheProduct;
+            if (!_memoryCache.TryGetValue(id, out cacheProduct))
             {
-                return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
+                var product = await _db.Products.FindAsync(id);
+                if (product == null)
+                {
+                    return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
+                }
+                cacheProduct = product;
+                var cacheEntryOptions = new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15)
+                };
+                _memoryCache.Set(id, cacheProduct, cacheEntryOptions);
             }
-            return Ok(product);
+            return Ok(cacheProduct);
         }
 
         [HttpPost("add")]

@@ -25,13 +25,11 @@ namespace KwiatLuxeRESTAPI.Services.Logger
             ConsoleOutput = setConsoleOutput;
         }
 
-        public static void Log(this Severity severity, string message)
+        private static string FormatMessage(Severity severity, string message) 
         {
-            if ((severity == Severity.DEBUG) && !debugOutput && !ConsoleOutput) return;
             string severityString = " [ " + severity.ToString() + " ] ";
             DateTime timenow = DateTime.Now;
             string formatted = timenow.ToString("dd/MM/yyyy HH:mm:ss");
-
             switch (severity)
             {
                 case Severity.INFO:
@@ -54,13 +52,22 @@ namespace KwiatLuxeRESTAPI.Services.Logger
                     Console.ResetColor();
                     break;
             }
+            return formatted + severityString + message;
+        }
+
+        public static void Log(this Severity severity, string message)
+        {
+            if ((severity == Severity.DEBUG) && !debugOutput && !ConsoleOutput) goto writeFile;
+            if ((severity == Severity.DEBUG) && !debugOutput) return;
+            writeFile:
+            string outputMessage = FormatMessage(severity, message);
             if (!ConsoleOutput) 
             {
                 FileUtil fileUtil = new();
-                fileUtil.WriteFiles(formatted + severityString + message);
+                fileUtil.WriteFiles(outputMessage);
                 return;
             }
-            Console.WriteLine(formatted + severityString + message);
+            Console.WriteLine(outputMessage);
             Console.ResetColor();
         }
     }

@@ -12,6 +12,7 @@ namespace KwiatLuxeRESTAPI
         public DbSet<OrderProduct> OrderProducts { get; set; }
         public DbSet<Cart> Carts { get; set; }
         public DbSet<CartProduct> CartProducts { get; set; }
+        public DbSet<Token> Tokens { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>(entity => 
@@ -74,6 +75,19 @@ namespace KwiatLuxeRESTAPI
                 entity.HasOne(cp => cp.Product)
                       .WithMany(p => p.CartProducts)
                       .HasForeignKey(cp => cp.ProductId);
+            });
+
+            modelBuilder.Entity<Token>(entity => 
+            {
+                entity.HasKey(t => t.Id);
+                entity.Property(t => t.RefreshToken).HasMaxLength(600);
+                entity.Property(t => t.CreatedAt).IsRequired();
+                entity.Property(t => t.ExpiresAt).IsRequired();
+                entity.Property(t => t.RevokedAt);
+                entity.HasOne(t => t.User)
+                .WithOne(t => t.Token)
+                .HasForeignKey<Token>(t => t.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }
