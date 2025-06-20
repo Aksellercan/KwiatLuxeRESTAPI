@@ -32,7 +32,7 @@
 
         public bool IsAdmin(string? role) 
         {
-            if (role != null || role != "Admin") 
+            if (role != null && role != "Admin") 
             {
                 return false;
             }

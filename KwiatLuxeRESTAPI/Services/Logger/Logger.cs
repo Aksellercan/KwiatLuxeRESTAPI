@@ -14,7 +14,6 @@ namespace KwiatLuxeRESTAPI.Services.Logger
     {
         private static bool debugOutput = false;
         private static bool ConsoleOutput = true;
-        private static FileUtil fileUtil = new();
 
         public static void setDebugOutput(bool setdebugOutput) 
         {
@@ -57,6 +56,7 @@ namespace KwiatLuxeRESTAPI.Services.Logger
             }
             if (!ConsoleOutput) 
             {
+                FileUtil fileUtil = new();
                 fileUtil.WriteFiles(formatted + severityString + message);
                 return;
             }

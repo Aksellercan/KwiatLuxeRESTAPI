@@ -6,13 +6,13 @@ namespace KwiatLuxeRESTAPI.Services.Security
 {
     public class Password : IPasswordHasher
     {
-        public string HashPassword(string password, byte[] salt) 
+        public string HashPassword(string password, byte[] salt, int iterationCount) 
         {
             string hashedpassword = Convert.ToBase64String(KeyDerivation.Pbkdf2(
                 password: password!,
                 salt: salt,
                 prf: KeyDerivationPrf.HMACSHA256,
-                iterationCount: 10000,
+                iterationCount: iterationCount,
                 numBytesRequested: 256 / 8));
             return hashedpassword;
         }

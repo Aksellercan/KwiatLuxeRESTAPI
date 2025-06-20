@@ -15,6 +15,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         private readonly KwiatLuxeDb _db;
         private Password _passwordService = new Password();
         private UserInformation _userInformation = new UserInformation();
+        private int iterationCount = 100000;
 
         public UserController(KwiatLuxeDb db)
         {
@@ -104,7 +105,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             try
             {
                 byte[] compareSalt = Convert.FromBase64String(changePassword.Salt);
-                string compareHashes = _passwordService.HashPassword(newPassword, compareSalt);
+                string compareHashes = _passwordService.HashPassword(newPassword, compareSalt, iterationCount);
                 if (string.Equals(changePassword.Password, compareHashes))
                 {
                     Logger.Log(Severity.DEBUG, "New Password is same as old one");
@@ -112,7 +113,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                 }
                 byte[] newSalt = _passwordService.createSalt(256);
                 string saltBase64tring = Convert.ToBase64String(newSalt);
-                string newHashedPassword = _passwordService.HashPassword(newPassword, newSalt);
+                string newHashedPassword = _passwordService.HashPassword(newPassword, newSalt, iterationCount);
                 changePassword.Password = newHashedPassword;
                 changePassword.Salt = saltBase64tring;
                 await _db.SaveChangesAsync();

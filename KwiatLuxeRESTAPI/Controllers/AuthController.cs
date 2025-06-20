@@ -21,6 +21,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         private Password _passwordService = new Password();
         private bool USE_COOKIES = false;
         private UserInformation _userInformation = new UserInformation();
+        private int iterationCount = 100000;
 
         public AuthController(KwiatLuxeDb db, IConfiguration config)
         {
@@ -42,7 +43,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                 Role =  "Customer",
                 Email = userRegister.Email
             };
-            user.Password = _passwordService.HashPassword(userRegister.Password, salt);
+            user.Password = _passwordService.HashPassword(userRegister.Password, salt, iterationCount);
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
             return Ok( new { Message = "User registered successfully" });
@@ -102,7 +103,7 @@ namespace KwiatLuxeRESTAPI.Controllers
 
         private bool compareHashPassword(string enteredPassword, string userPassword, byte[] salt)
         {
-            if (string.Equals(userPassword, _passwordService.HashPassword(enteredPassword, salt)))
+            if (string.Equals(userPassword, _passwordService.HashPassword(enteredPassword, salt, iterationCount)))
             {
                 return true;
             }
