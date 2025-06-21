@@ -21,8 +21,10 @@ The **KwiatLuxe REST API** is a secure, token-authenticated backend system for a
   - Uses user claims to resolve identity securely.
 
 - **Custom Logging Mechanism**  
-  - Logs critical operations at key points using `Logger.Log(Severity.DEBUG, ...)`.
+  - Logs critical operations at key points using `Logger.Log(Severity.WARN, ...)`.
   - Can also write logs to file in `\Logs` folder.
+  - Severity-based color-coded console logs
+  - Toggleable debug output
 ---
 
 ## Implementation
@@ -82,6 +84,20 @@ foreach (var cartProducts in removeAllCartProducts)
 ```
 This avoids relying solely on cascade deletes and gives more control over clean-up logic.
 
+## Authentication & Authorization
+
+- **JWT-based access and refresh token system**
+  - Separate `AccessToken` and `RefreshToken` lifecycle
+  - `RefreshToken` persisted in the Database
+- **Role-based policies** (`User`, `Admin`) and **custom policy-based claims** (`AccessToken`, `RefreshToken`)
+- **Custom Token validation and logging events** like:
+  - `OnTokenValidated`
+  - `OnAuthenticationFailed`
+  - `OnChallenge`
+  - `OnForbidden`
+
+Supports both **cookie-based** and **header-based** auth (configurable via `USE_COOKIES` flag).
+
 ## Database Structure
 
 The application uses the following tables:
@@ -93,16 +109,18 @@ The application uses the following tables:
 |CartProducts	|Links products to a cart (many-to-one).|
 |Orders	|One-to-Many with Users. Stores all user orders.|
 |OrderProducts|	Links products to an order (many-to-one).|
+|Tokens|One-to-One with Users. Stores long term refresh tokens|
 
 ## Entity Relationships
 
     One-to-One:
-    User → Cart
+    User → Carts
+    User → Tokens 
 
     One-to-Many:
     User → Orders
     Order → OrderProducts
-    Cart → CartProducts
+    Carts → CartProducts
 
 ## API Endpoints Overview
 |Method|	Route|	Description|
