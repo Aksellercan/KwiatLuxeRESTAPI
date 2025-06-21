@@ -155,30 +155,48 @@ namespace KwiatLuxeRESTAPI.Controllers
 
         private ClaimsPrincipal ValidateToken(string jwtToken) 
         {
-            SecurityToken validatedToken;
-            TokenValidationParameters validationParameters = new TokenValidationParameters();
-            validationParameters.ValidateLifetime = true;
-            validationParameters.ValidAudience = _config["Jwt:Audience"];
-            validationParameters.ValidIssuer = _config["Jwt:Issuer"];
-            validationParameters.IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
-            ClaimsPrincipal claimsPrincipal = new JwtSecurityTokenHandler().ValidateToken(jwtToken, validationParameters, out validatedToken);
-            return claimsPrincipal;
+            try
+            {
+                SecurityToken validatedToken;
+                TokenValidationParameters validationParameters = new TokenValidationParameters();
+                validationParameters.ValidateLifetime = true;
+                validationParameters.ValidAudience = _config["Jwt:Audience"];
+                validationParameters.ValidIssuer = _config["Jwt:Issuer"];
+                validationParameters.IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+                ClaimsPrincipal claimsPrincipal = new JwtSecurityTokenHandler().ValidateToken(jwtToken, validationParameters, out validatedToken);
+                return claimsPrincipal;
+            }
+            catch (Exception e) 
+            {
+                throw new Exception($"When validating. Error details: ValidateToken() AuthController, {e}");
+            }
         }
 
         [HttpPost("refreshToken")]
         public async Task<IActionResult> RefreshAccessToken([FromBody] TokenDTO tokenDTO)
         {
+            if (tokenDTO.AccessToken == null && tokenDTO.RefreshToken == null) return BadRequest(new { error = "Token cannot be empty" });
             Claim claimCurrentUserId = null;
-            if (tokenDTO.AccessToken == null)
+            try
             {
-                claimCurrentUserId = ValidateToken(tokenDTO.RefreshToken).FindFirst(ClaimTypes.NameIdentifier);
-            }
-            else if (tokenDTO.RefreshToken == null) 
+                string tokenType = null;
+                if (String.IsNullOrWhiteSpace(tokenDTO.AccessToken) && !String.IsNullOrWhiteSpace(tokenDTO.RefreshToken))
+                {
+                    tokenType = tokenDTO.RefreshToken;
+                }
+                else if (String.IsNullOrWhiteSpace(tokenDTO.RefreshToken) && !String.IsNullOrWhiteSpace(tokenDTO.AccessToken))
+                {
+                    tokenType = tokenDTO.AccessToken;
+                }
+                if (tokenType == null) throw new Exception ("Token type could not be determined");
+                claimCurrentUserId = ValidateToken(tokenType).FindFirst(ClaimTypes.NameIdentifier);
+            } catch (Exception e) 
             {
-                claimCurrentUserId = ValidateToken(tokenDTO.AccessToken).FindFirst(ClaimTypes.NameIdentifier);
+                Logger.Log(Severity.ERROR, $"{e}");
+                return BadRequest(new { error = $"{e.ToString()}"});
             }
             if (claimCurrentUserId == null) return Unauthorized(new { UnAuthorized = "No user ID claim found." });
-            int parsedClaimId = int.Parse(claimCurrentUserId?.Value);
+            int parsedClaimId = _userInformation.GetCurrentUserId(claimCurrentUserId?.Value);
             var retrieveToken = await _db.Tokens.Where(t => t.UserId == parsedClaimId).FirstOrDefaultAsync();
             if (retrieveToken != null && retrieveToken.RevokedAt == null)
             {
@@ -195,6 +213,9 @@ namespace KwiatLuxeRESTAPI.Controllers
             if ((user != null) && (retrieveToken != null))
             {
                 retrieveToken.RefreshToken = token;
+                retrieveToken.ExpiresAt = DateTime.UtcNow.AddDays(7);
+                retrieveToken.RevokedAt = null;
+                retrieveToken.CreatedAt = DateTime.UtcNow;
                 _db.Tokens.Update(retrieveToken);
                 await _db.SaveChangesAsync();
             }
@@ -210,7 +231,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                 _db.Tokens.Add(tokenObj);
                 await _db.SaveChangesAsync();
             }
-            return Ok(new { refreshToken = token });
+            return Ok(new { refreshToken = token, expiresAt = DateTime.UtcNow.AddDays(7) });
         }
 
         [HttpPost("exchangeToken")]
