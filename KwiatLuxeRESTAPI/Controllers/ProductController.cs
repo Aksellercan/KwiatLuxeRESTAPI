@@ -60,7 +60,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpPost("add")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin", Policy = "AccessToken")]
         public async Task<IActionResult> AddProduct([FromBody] ProductDTO productDto)
         {
             if (productDto == null)
@@ -80,7 +80,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpDelete("delete/{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin", Policy = "AccessToken")]
         public async Task<IActionResult> DeleteProduct([FromRoute] int id) 
         {
             //check if product to delete exists
@@ -92,7 +92,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpPut("update/{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin", Policy = "AccessToken")]
         public async Task<IActionResult> UpdateProduct([FromRoute] int id, [FromBody] UpdateProductDTO updateProductDto)
         {
             //check if product to update exists

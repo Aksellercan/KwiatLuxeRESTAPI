@@ -22,7 +22,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpPost("createcart")]
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         public async Task<IActionResult> CreateAndAddToCart([FromBody] CartDTO cartDto)
         {
             if (cartDto == null || cartDto.CartProduct == null || !cartDto.CartProduct.Any())
@@ -75,7 +75,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpPost("addcart")]
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         public async Task<IActionResult> AddMoreToCart([FromBody] CartDTO cartDto)
         {
             if (cartDto == null || cartDto.CartProduct == null || !cartDto.CartProduct.Any())
@@ -156,7 +156,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpGet("mycart")]
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         public async Task<IActionResult> GetMyCartItems()
         {
             int userId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
@@ -174,7 +174,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpDelete("removecart")]
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         public async Task<IActionResult> RemoveCart()
         {
             int userId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);

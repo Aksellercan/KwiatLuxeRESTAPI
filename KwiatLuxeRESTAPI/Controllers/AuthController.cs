@@ -1,10 +1,12 @@
 ﻿using KwiatLuxeRESTAPI.DTOs;
 using KwiatLuxeRESTAPI.Models;
 using KwiatLuxeRESTAPI.Services.Data;
+using KwiatLuxeRESTAPI.Services.Logger;
 using KwiatLuxeRESTAPI.Services.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -22,11 +24,43 @@ namespace KwiatLuxeRESTAPI.Controllers
         private bool USE_COOKIES = false;
         private UserInformation _userInformation = new();
         private int iterationCount = 100000;
+        private readonly IMemoryCache _memoryCache;
 
-        public AuthController(KwiatLuxeDb db, IConfiguration config)
+        public AuthController(KwiatLuxeDb db, IConfiguration config, IMemoryCache memoryCache)
         {
             _db = db;
             _config = config;
+            _memoryCache = memoryCache;
+        }
+
+        private void CookieOptions(string? text, bool removeCookie) 
+        {
+            if (removeCookie) 
+            {
+                Response.Cookies.Delete("Identity", new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = false,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddDays(-1)
+                });
+            }
+            else
+            {
+                if (text == null) 
+                {
+                    Logger.Log(Severity.ERROR, "Append Cookie Text Cannot be NULL");
+                    return; 
+                }
+                Response.Cookies.Append("Identity", text, new CookieOptions
+                {
+                    HttpOnly = true,
+                    IsEssential = true,
+                    Secure = false,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddDays(1)
+                });
+            }
         }
 
         [HttpPost("register")]
@@ -84,6 +118,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                     new Claim(ClaimTypes.Email, user.Email),
                     new Claim(ClaimTypes.Role, user.Role),
                     new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim("Purpose", "AccessToken")
                 },
                 expires: DateTime.UtcNow.AddDays(expireDays),
                 signingCredentials: credentials);
@@ -103,17 +138,10 @@ namespace KwiatLuxeRESTAPI.Controllers
             var token = GenerateJwtToken(user, 1, false);
             if (USE_COOKIES)
             {
-                Response.Cookies.Append("Identity", token, new CookieOptions
-                {
-                    HttpOnly = true,
-                    IsEssential = true,
-                    Secure = false,
-                    SameSite = SameSiteMode.Strict,
-                    Expires = DateTime.UtcNow.AddDays(1)
-                });
-                return Ok("Logged in Successfully");
+                CookieOptions(token, false);
+                return Ok(new { loginSuccess = "Logged in Successfully" });
             }
-            return Ok(new { token });
+            return Ok(new { AccessToken = token });
         }
 
         private bool CompareHashPassword(string enteredPassword, string userPassword, byte[] salt)
@@ -140,7 +168,6 @@ namespace KwiatLuxeRESTAPI.Controllers
         [HttpPost("refreshToken")]
         public async Task<IActionResult> RefreshAccessToken([FromBody] TokenDTO tokenDTO)
         {
-            bool dbTokenExpired = false;
             Claim claimCurrentUserId = null;
             if (tokenDTO.AccessToken == null)
             {
@@ -163,14 +190,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             var token = GenerateJwtToken(user, 7, true); //7 day token
             if (USE_COOKIES)
             {
-                Response.Cookies.Append("Identity", token, new CookieOptions
-                {
-                    HttpOnly = true,
-                    IsEssential = true,
-                    Secure = false,
-                    SameSite = SameSiteMode.Strict,
-                    Expires = DateTime.UtcNow.AddDays(1)
-                });
+                CookieOptions(token, false);
             }
             if ((user != null) && (retrieveToken != null))
             {
@@ -198,73 +218,67 @@ namespace KwiatLuxeRESTAPI.Controllers
         public async Task<IActionResult> ExchangeRefreshToken() 
         {
             int claimCurrentUserId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            if (claimCurrentUserId == -1) return NotFound(new { UserNotFound = $"User with id {claimCurrentUserId} not found." });
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == claimCurrentUserId);
-            if (user == null) return Unauthorized(new { UnAuthorized = "User not found." });
+            if (user == null) return Unauthorized(new { UserNotFound = $"User with id {claimCurrentUserId} not found." });
             var token = GenerateJwtToken(user, 1, false); //return normal token 1 day
             if (USE_COOKIES)
             {
-                Response.Cookies.Append("Identity", token, new CookieOptions
-                {
-                    HttpOnly = true,
-                    IsEssential = true,
-                    Secure = false,
-                    SameSite = SameSiteMode.Strict,
-                    Expires = DateTime.UtcNow.AddDays(1)
-                });
+                CookieOptions(token, false);
                 return Ok(new { tokenMessage = "Token Exchanged" });
             }
             return Ok(new { accessToken = token });
         }
 
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         [HttpPost("logout")]
         public IActionResult ClearCookiesLogOut()
         {
             if (!USE_COOKIES) return BadRequest(new { Error = $"USE_COOKIES is {USE_COOKIES}" });
-            Response.Cookies.Delete("Identity", new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = false,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(-1)
-            });
+            CookieOptions(null, true);
             return Ok(new { Message = "Logged out and cleared Cookies" });
         }
 
         [HttpGet("CurrentUser")]
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         public async Task<IActionResult> GetCurrentUser()
         {
-            var claimCurrentUsername = User.FindFirst(ClaimTypes.Name);
-            var claimCurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier);
-            var claimCurrentUserEmail = User.FindFirst(ClaimTypes.Email);
-            var claimCurrentUserRole = User.FindFirst(ClaimTypes.Role);
-
-            var currentUsername = claimCurrentUsername?.Value;
-            var currentUserEmail = claimCurrentUserEmail?.Value;
-            var currentUserIdstr = claimCurrentUserId?.Value;
-            var currentUserRole = claimCurrentUserRole?.Value;
-
-            if (currentUserIdstr == null || currentUsername == null || currentUserRole == null || currentUserEmail == null)
+            var claimCurrentUsername = _userInformation.GetCurrentUsername(User.FindFirst(ClaimTypes.Name)?.Value);
+            int claimCurrentUserId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            var claimCurrentUserEmail = _userInformation.GetCurrentMail(User.FindFirst(ClaimTypes.Email)?.Value);
+            var claimCurrentUserRole = _userInformation.getCurrentUserRole(User.FindFirst(ClaimTypes.Role)?.Value);
+            if (claimCurrentUserId == -1 || claimCurrentUsername == null || claimCurrentUserRole == null || claimCurrentUserEmail == null)
             {
                 return Unauthorized(new { UnAuthorized = "Unauthenticated or user not found" });
             }
-
-            int currentUserId = int.Parse(claimCurrentUserId?.Value);
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == currentUserId);
-            if (user == null)
+            UserDTO userCache;
+            if (!_memoryCache.TryGetValue(claimCurrentUserId, out userCache))
             {
-                return Unauthorized(new { UnAuthorized = "Unauthenticated or user not found" });
+                var user = await _db.Users.Select(u => new
+                {
+                    u.Id,
+                    u.Username,
+                    u.Email,
+                    u.Role
+                }).FirstOrDefaultAsync(u => u.Id == claimCurrentUserId);
+                if (user == null) return Unauthorized(new { UnAuthorized = "Unauthenticated or user not found" });
+                userCache = new UserDTO 
+                {
+                    Id=user.Id,
+                    Username=user.Username,
+                    Email=user.Email,
+                    Role=user.Role
+                };
+                var cacheEntryOptions = new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                };
+                _memoryCache.Set(claimCurrentUserId, userCache, cacheEntryOptions);
             }
-            return Ok(new UserDTO {
-                Id = currentUserId,
-                Username = currentUsername,
-                Email = currentUserEmail,
-                Role = currentUserRole
-            });
+            return Ok(new { userInformation = userCache });
         }
         [HttpGet("isadmin")]
-        [Authorize (Roles="Admin")]
+        [Authorize (Roles="Admin", Policy="AccessToken")]
         public IActionResult IsAdmin() 
         {
             var adminClaim = _userInformation.IsAdmin(User.FindFirst(ClaimTypes.Role)?.Value);
@@ -272,9 +286,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             {
                 return Ok(new { isAdmin = "Admin role verified"});
             }
-            var CurrentRole = _userInformation.getCurrentUserRole(User.FindFirst(ClaimTypes.Role)?.Value);
-            return Unauthorized(new { UnAuthorized = $"Admin Role can not be verified. isAdmin = {CurrentRole}"});
+            return Unauthorized(new { UnAuthorized = $"Admin Role can not be verified."});
         }
-
     }
 }

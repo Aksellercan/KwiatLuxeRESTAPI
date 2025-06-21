@@ -20,6 +20,15 @@
             return name;
         }
 
+        public string? GetCurrentMail(string? mail)
+        {
+            if (mail == null)
+            {
+                return null;
+            }
+            return mail;
+        }
+
         public string? getCurrentUserRole(string? role) 
         {
             if (role == null) 

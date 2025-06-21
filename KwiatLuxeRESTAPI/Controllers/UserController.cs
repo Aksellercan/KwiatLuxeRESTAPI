@@ -22,11 +22,12 @@ namespace KwiatLuxeRESTAPI.Controllers
             _db = db;
         }
 
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         [HttpDelete("removeuser")]
         public async Task<IActionResult> removeUser()
         {
             int currentUserId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            if (currentUserId == -1) return NotFound(new { UserNotFound = $"User with id {currentUserId} not found." });
             var removeUser = await _db.Users.FindAsync(currentUserId);
             if (removeUser == null)
             {
@@ -45,11 +46,12 @@ namespace KwiatLuxeRESTAPI.Controllers
             return NoContent();
         }
 
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         [HttpPut("updateusername")]
         public async Task<IActionResult> updateUsername(string newUsername)
         {
             int currentUserId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            if (currentUserId == -1) return NotFound(new { UserNotFound = $"User with id {currentUserId} not found." });
             var updateUsername = await _db.Users.FindAsync(currentUserId);
             if (updateUsername == null) 
             { 
@@ -68,11 +70,12 @@ namespace KwiatLuxeRESTAPI.Controllers
             return Ok(new { Message = "Successfully updated Username"});
         }
 
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         [HttpPut("updatemail")]
         public async Task<IActionResult> updateUsermail(string newMail)
         {
             int currentUserId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            if (currentUserId == -1) return NotFound(new { UserNotFound = $"User with id {currentUserId} not found." });
             var changeMail = await _db.Users.FindAsync(currentUserId);
             if (changeMail == null)
             {
@@ -91,17 +94,14 @@ namespace KwiatLuxeRESTAPI.Controllers
             return Ok(new { Message = "Successfully updated Email" });
         }
 
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         [HttpPut("updatepassword")]
         public async Task<IActionResult> updateUserPassword(string newPassword)
         {
             int currentUserId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            if (currentUserId == -1) return NotFound(new { UserNotFound = $"User with id {currentUserId} not found." });
             var changePassword = await _db.Users.FindAsync(currentUserId);
-            if (changePassword == null)
-            {
-                return NotFound(new { UserNotFound = $"User with id {currentUserId} not found." });
-            }
-
+            if (changePassword == null) return NotFound(new { UserNotFound = $"User with id {currentUserId} not found." });
             try
             {
                 byte[] compareSalt = Convert.FromBase64String(changePassword.Salt);

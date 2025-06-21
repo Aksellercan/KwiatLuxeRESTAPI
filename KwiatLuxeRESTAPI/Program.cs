@@ -154,7 +154,8 @@ namespace KwiatLuxeRESTAPI
 
             builder.Services.AddAuthorization(options => 
             {
-                options.AddPolicy("RefreshToken", policy => policy.RequireClaim("Purpose"));
+                options.AddPolicy("RefreshToken", policy => policy.RequireClaim("Purpose", "RefreshToken"));
+                options.AddPolicy("AccessToken", policy => policy.RequireClaim("Purpose", "AccessToken"));
             });
 
             var app = builder.Build();

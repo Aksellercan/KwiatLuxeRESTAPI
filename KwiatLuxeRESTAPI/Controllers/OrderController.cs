@@ -21,7 +21,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpPost("placeorder")]
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         public async Task<IActionResult> PlaceOrder()
         {
             int userId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
@@ -62,7 +62,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpGet("myorders")]
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         public async Task<IActionResult> GetMyOrders() 
         {
             int userId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
@@ -81,7 +81,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpDelete("cancelorder{id}")]
-        [Authorize]
+        [Authorize(Policy = "AccessToken")]
         public async Task<IActionResult> CancelOrder([FromRoute] int id) 
         {
             int userId = _userInformation.GetCurrentUserId(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
