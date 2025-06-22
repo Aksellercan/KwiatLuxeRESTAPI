@@ -12,12 +12,27 @@ namespace KwiatLuxeRESTAPI
     {
         public static void Main(string[] args)
         {
-            bool USE_COOKIES = false; //set cookie use
             var builder = WebApplication.CreateBuilder(args);
-            //set Debug output to console
-            Logger.setDebugOutput(true);
-            //set writing logs to file instead of console
-            Logger.setConsoleOutput(true);
+            
+            //Custom Logger Settings
+            var debugLoggerSettings = builder.Configuration["CustomLogger:DebugOutput"];
+            if (debugLoggerSettings != null) Logger.setDebugOutput(bool.Parse(debugLoggerSettings));
+            var consoleLoggerSettings = builder.Configuration["CustomLogger:ConsoleOutput"];
+            if (consoleLoggerSettings != null) Logger.setConsoleOutput(bool.Parse(consoleLoggerSettings));
+
+            //API Options Configuration
+            var cookieAppSettings = builder.Configuration["APIOptions:USE_COOKIES"];
+            if (cookieAppSettings != null) SetAPIOptions.USE_COOKIES = bool.Parse(cookieAppSettings);
+            Logger.Log(Severity.DEBUG, "Cookie usage is " + (SetAPIOptions.USE_COOKIES ? "enabled":"disabled"));
+            var hashAppSettings = builder.Configuration["APIOptions:SET_ITERATION_COUNT"];
+            if (hashAppSettings != null) SetAPIOptions.SET_ITERATION_COUNT = int.Parse(hashAppSettings);
+            Logger.Log(Severity.DEBUG, $"Password hashing iteration count set to {SetAPIOptions.SET_ITERATION_COUNT} " + (SetAPIOptions.SET_ITERATION_COUNT == 1 ? "iteration" : "iterations"));
+            var roleAppSettings = builder.Configuration["APIOptions:DEFAULT_ROLE"];
+            if (roleAppSettings != null) SetAPIOptions.DEFAULT_ROLE = roleAppSettings;
+            Logger.Log(Severity.DEBUG, $"Default user role is configured as: {SetAPIOptions.DEFAULT_ROLE}");
+            var specialRoleAppSettings = builder.Configuration["APIOptions:SET_SPECIAL_ROLE"];
+            if (specialRoleAppSettings != null) SetAPIOptions.SET_SPECIAL_ROLE = specialRoleAppSettings;
+            Logger.Log(Severity.DEBUG, $"Special user role is configured as: {SetAPIOptions.SET_SPECIAL_ROLE}");
 
             // Add services to the container.
             builder.Services.AddControllers();
@@ -125,7 +140,7 @@ namespace KwiatLuxeRESTAPI
                     }
                 };
             });
-            if (USE_COOKIES)
+            if (SetAPIOptions.USE_COOKIES)
             {
                 builder.Services.Configure<CookiePolicyOptions>(options =>
                 {
@@ -180,5 +195,14 @@ namespace KwiatLuxeRESTAPI
 
             app.Run();
         }
+    }
+
+    public static class SetAPIOptions 
+    {
+        //defaults
+        public static bool USE_COOKIES = false;
+        public static int SET_ITERATION_COUNT = 100000;
+        public static string DEFAULT_ROLE = "Customer";
+        public static string SET_SPECIAL_ROLE = "Admin";
     }
 }

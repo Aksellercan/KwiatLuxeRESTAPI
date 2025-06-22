@@ -47,7 +47,6 @@ namespace KwiatLuxeRESTAPI.Services.Logger
                 case Severity.ERROR:
                     Console.ForegroundColor = ConsoleColor.Red;
                     break;
-
                 default:
                     Console.ResetColor();
                     break;

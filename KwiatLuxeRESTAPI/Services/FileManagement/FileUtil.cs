@@ -46,13 +46,13 @@ namespace KwiatLuxeRESTAPI.Services.FileManagement
                 }
                 streamWriter.WriteLine(message);
                 streamWriter.Close();
-
             }
             catch (Exception e) 
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Error: {e}");
                 Console.ResetColor();
+                return;
             }
         }
     }

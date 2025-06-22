@@ -2,6 +2,6 @@
 {
     public class CartDTO
     {
-        public List<OrderProductDTO> CartProduct { get; set; }
+        public List<OrderProductDTO>? CartProduct { get; set; }
     }
 }

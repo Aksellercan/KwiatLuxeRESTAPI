@@ -45,8 +45,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                 TotalAmount = 0
             };
             //get products array and store in a dictionary mapping id to object
-            var products = await _db.Products.ToListAsync();
-            Dictionary<int, Product> productsDictionary = MapProducts(products);
+            Dictionary<int, Product> productsDictionary = await MapProducts();
             Logger.Log(Severity.DEBUG, $"UserId: {cart.UserId}, TotalAmount: {cart.TotalAmount}");
             _db.Carts.Add(cart);
             await _db.SaveChangesAsync();
@@ -93,8 +92,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                 return NotFound(new { CartNotFound = $"Cart with id {userId} not found." });
             }
             //get products array and store in a dictionary mapping id to object
-            var products = await _db.Products.ToListAsync();
-            Dictionary<int, Product> productsDictionary = MapProducts(products);
+            Dictionary<int, Product> productsDictionary = await MapProducts();
             decimal newCost = cart.TotalAmount;
             foreach (var product in cartDto.CartProduct)
             {
@@ -145,8 +143,9 @@ namespace KwiatLuxeRESTAPI.Controllers
             return Ok(new { Message = "Added to cart successfully." });
         }
 
-        private Dictionary<int, Product> MapProducts(List<Product> products) 
+        private async Task<Dictionary<int, Product>> MapProducts() 
         {
+            var products = await _db.Products.ToListAsync();
             Dictionary<int, Product> productsDictionary = new Dictionary<int, Product>();
             for (int i = 0; i < products.Count; i++) 
             {

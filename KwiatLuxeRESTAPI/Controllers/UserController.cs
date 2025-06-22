@@ -1,7 +1,7 @@
 ﻿using KwiatLuxeRESTAPI.Models;
 using KwiatLuxeRESTAPI.Services.Data;
 using KwiatLuxeRESTAPI.Services.Logger;
-using KwiatLuxeRESTAPI.Services.Security;
+using KwiatLuxeRESTAPI.Services.Security.Password;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -15,7 +15,6 @@ namespace KwiatLuxeRESTAPI.Controllers
         private readonly KwiatLuxeDb _db;
         private Password _passwordService = new Password();
         private UserInformation _userInformation = new UserInformation();
-        private int iterationCount = 100000;
 
         public UserController(KwiatLuxeDb db)
         {
@@ -105,15 +104,14 @@ namespace KwiatLuxeRESTAPI.Controllers
             try
             {
                 byte[] compareSalt = Convert.FromBase64String(changePassword.Salt);
-                string compareHashes = _passwordService.HashPassword(newPassword, compareSalt, iterationCount);
-                if (string.Equals(changePassword.Password, compareHashes))
+                if (_passwordService.CompareHashPassword(newPassword, changePassword.Password, compareSalt))
                 {
                     Logger.Log(Severity.DEBUG, "New Password is same as old one");
                     return BadRequest(new { Error = "New Password is same as old one" });
                 }
                 byte[] newSalt = _passwordService.createSalt(256);
                 string saltBase64tring = Convert.ToBase64String(newSalt);
-                string newHashedPassword = _passwordService.HashPassword(newPassword, newSalt, iterationCount);
+                string newHashedPassword = _passwordService.HashPassword(newPassword, newSalt);
                 changePassword.Password = newHashedPassword;
                 changePassword.Salt = saltBase64tring;
                 await _db.SaveChangesAsync();

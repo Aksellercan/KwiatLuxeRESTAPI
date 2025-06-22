@@ -2,6 +2,6 @@
 {
     public class OrderDTO
     {
-        public List<OrderProductDTO> OrderProduct { get; set; }
+        public List<OrderProductDTO>? OrderProduct { get; set; }
     }
 }

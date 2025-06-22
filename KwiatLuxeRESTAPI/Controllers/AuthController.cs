@@ -2,15 +2,13 @@
 using KwiatLuxeRESTAPI.Models;
 using KwiatLuxeRESTAPI.Services.Data;
 using KwiatLuxeRESTAPI.Services.Logger;
-using KwiatLuxeRESTAPI.Services.Security;
+using KwiatLuxeRESTAPI.Services.Security.Authorization;
+using KwiatLuxeRESTAPI.Services.Security.Password;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 
 namespace KwiatLuxeRESTAPI.Controllers
 {
@@ -21,16 +19,17 @@ namespace KwiatLuxeRESTAPI.Controllers
         private readonly KwiatLuxeDb _db;
         private readonly IConfiguration _config;
         private Password _passwordService = new();
-        private bool USE_COOKIES = false;
+        private bool USE_COOKIES = SetAPIOptions.USE_COOKIES;
         private UserInformation _userInformation = new();
-        private int iterationCount = 100000;
         private readonly IMemoryCache _memoryCache;
+        private JWTValidation _jwtValidation;
 
         public AuthController(KwiatLuxeDb db, IConfiguration config, IMemoryCache memoryCache)
         {
             _db = db;
             _config = config;
             _memoryCache = memoryCache;
+            _jwtValidation = new(_config);
         }
 
         private void CookieOptions(string? text, bool removeCookie) 
@@ -74,55 +73,13 @@ namespace KwiatLuxeRESTAPI.Controllers
                 Username = userRegister.Username,
                 Password = userRegister.Password,
                 Salt = saltBase64tring,
-                Role =  "Customer",
+                Role =  SetAPIOptions.DEFAULT_ROLE,
                 Email = userRegister.Email
             };
-            user.Password = _passwordService.HashPassword(userRegister.Password, salt, iterationCount);
+            user.Password = _passwordService.HashPassword(userRegister.Password, salt);
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
             return Ok( new { Message = "User registered successfully" });
-        }
-
-        private byte[] GetUserSaltDB(User user)
-        {
-            return Convert.FromBase64String(user.Salt);
-        }
-
-        private string GenerateJwtToken(User user, int expireDays, bool Generate_Refresh_Token)
-        {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
-            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-            if (Generate_Refresh_Token) 
-            {
-                var refreshToken = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: new List<Claim>
-                {
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role),
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim("Purpose", "RefreshToken")
-                },
-                expires: DateTime.UtcNow.AddDays(expireDays),
-                signingCredentials: credentials);
-                return new JwtSecurityTokenHandler().WriteToken(refreshToken);
-            }
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: new List<Claim>
-                {
-                    new Claim(ClaimTypes.Name, user.Username),
-                    new Claim(ClaimTypes.Email, user.Email),
-                    new Claim(ClaimTypes.Role, user.Role),
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                    new Claim("Purpose", "AccessToken")
-                },
-                expires: DateTime.UtcNow.AddDays(expireDays),
-                signingCredentials: credentials);
-            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         [HttpPost("login")]
@@ -132,10 +89,10 @@ namespace KwiatLuxeRESTAPI.Controllers
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == userLogin.Username);
             if (user == null) return NotFound("login error: User not found");
             // Retrieve saved Salt for comparing hashes
-            byte[] salt = GetUserSaltDB(user);
-            if (!CompareHashPassword(userLogin.Password, user.Password, salt)) return Unauthorized(new { UnAuthorized = "Wrong Login details"});
+            byte[] salt = Convert.FromBase64String(user.Salt);
+            if (!_passwordService.CompareHashPassword(userLogin.Password, user.Password, salt)) return Unauthorized(new { UnAuthorized = "Wrong Login details"});
 
-            var token = GenerateJwtToken(user, 1, false);
+            var token = _jwtValidation.GenerateAccessToken(user, 1);
             if (USE_COOKIES)
             {
                 CookieOptions(token, false);
@@ -144,42 +101,14 @@ namespace KwiatLuxeRESTAPI.Controllers
             return Ok(new { AccessToken = token });
         }
 
-        private bool CompareHashPassword(string enteredPassword, string userPassword, byte[] salt)
-        {
-            if (string.Equals(userPassword, _passwordService.HashPassword(enteredPassword, salt, iterationCount)))
-            {
-                return true;
-            }
-            return false;
-        }
-
-        private ClaimsPrincipal ValidateToken(string jwtToken) 
-        {
-            try
-            {
-                SecurityToken validatedToken;
-                TokenValidationParameters validationParameters = new TokenValidationParameters();
-                validationParameters.ValidateLifetime = true;
-                validationParameters.ValidAudience = _config["Jwt:Audience"];
-                validationParameters.ValidIssuer = _config["Jwt:Issuer"];
-                validationParameters.IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
-                ClaimsPrincipal claimsPrincipal = new JwtSecurityTokenHandler().ValidateToken(jwtToken, validationParameters, out validatedToken);
-                return claimsPrincipal;
-            }
-            catch (Exception e) 
-            {
-                throw new Exception($"When validating. Error details: ValidateToken() AuthController, {e}");
-            }
-        }
-
         [HttpPost("refreshToken")]
         public async Task<IActionResult> RefreshAccessToken([FromBody] TokenDTO tokenDTO)
         {
             if (tokenDTO.AccessToken == null && tokenDTO.RefreshToken == null) return BadRequest(new { error = "Token cannot be empty" });
-            Claim claimCurrentUserId = null;
+            Claim? claimCurrentUserId = null;
             try
             {
-                string tokenType = null;
+                string? tokenType = null;
                 if (String.IsNullOrWhiteSpace(tokenDTO.AccessToken) && !String.IsNullOrWhiteSpace(tokenDTO.RefreshToken))
                 {
                     tokenType = tokenDTO.RefreshToken;
@@ -189,7 +118,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                     tokenType = tokenDTO.AccessToken;
                 }
                 if (tokenType == null) throw new Exception ("Token type could not be determined");
-                claimCurrentUserId = ValidateToken(tokenType).FindFirst(ClaimTypes.NameIdentifier);
+                claimCurrentUserId = _jwtValidation.ValidateToken(tokenType).FindFirst(ClaimTypes.NameIdentifier);
             } catch (Exception e) 
             {
                 Logger.Log(Severity.ERROR, $"{e}");
@@ -198,14 +127,18 @@ namespace KwiatLuxeRESTAPI.Controllers
             if (claimCurrentUserId == null) return Unauthorized(new { UnAuthorized = "No user ID claim found." });
             int parsedClaimId = _userInformation.GetCurrentUserId(claimCurrentUserId?.Value);
             var retrieveToken = await _db.Tokens.Where(t => t.UserId == parsedClaimId).FirstOrDefaultAsync();
-            if (retrieveToken != null && retrieveToken.RevokedAt == null)
-            {
-                if (DateTime.UtcNow < retrieveToken.ExpiresAt) return Ok(new { refreshToken = retrieveToken.RefreshToken, expiresAt = retrieveToken.ExpiresAt });
-                return BadRequest(new { error = "Refresh Token Expired"});
+            if (retrieveToken != null) {
+                if (retrieveToken.RevokedAt == null)
+                {
+                    if (DateTime.UtcNow < retrieveToken.ExpiresAt) return Ok(new { refreshToken = retrieveToken.RefreshToken, expiresAt = retrieveToken.ExpiresAt });
+                    _db.Tokens.Remove(retrieveToken);
+                    await _db.SaveChangesAsync();
+                    return BadRequest(new { error = "Refresh Token Expired" });
+                }
             }
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == parsedClaimId);
             if (user == null) return Unauthorized(new { UnAuthorized = "User not found." });
-            var token = GenerateJwtToken(user, 7, true); //7 day token
+            var token = _jwtValidation.GenerateRefreshToken(user, 7); //7 day token
             if (USE_COOKIES)
             {
                 CookieOptions(token, false);
@@ -242,7 +175,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             if (claimCurrentUserId == -1) return NotFound(new { UserNotFound = $"User with id {claimCurrentUserId} not found." });
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == claimCurrentUserId);
             if (user == null) return Unauthorized(new { UserNotFound = $"User with id {claimCurrentUserId} not found." });
-            var token = GenerateJwtToken(user, 1, false); //return normal token 1 day
+            var token = _jwtValidation.GenerateAccessToken(user, 1); //return normal token 1 day
             if (USE_COOKIES)
             {
                 CookieOptions(token, false);
@@ -255,7 +188,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         [HttpPost("logout")]
         public IActionResult ClearCookiesLogOut()
         {
-            if (!USE_COOKIES) return BadRequest(new { Error = $"USE_COOKIES is {USE_COOKIES}" });
+            if (!USE_COOKIES) return BadRequest(new { Error = $"USE_COOKIES is set to {USE_COOKIES}" });
             CookieOptions(null, true);
             return Ok(new { Message = "Logged out and cleared Cookies" });
         }
@@ -272,7 +205,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             {
                 return Unauthorized(new { UnAuthorized = "Unauthenticated or user not found" });
             }
-            UserDTO userCache;
+            UserDTO? userCache;
             if (!_memoryCache.TryGetValue(claimCurrentUserId, out userCache))
             {
                 var user = await _db.Users.Select(u => new
@@ -299,7 +232,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             return Ok(new { userInformation = userCache });
         }
         [HttpGet("isadmin")]
-        [Authorize (Roles="Admin", Policy="AccessToken")]
+        [Authorize(Roles = "Admin", Policy = "AccessToken")]
         public IActionResult IsAdmin() 
         {
             var adminClaim = _userInformation.IsAdmin(User.FindFirst(ClaimTypes.Role)?.Value);

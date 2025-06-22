@@ -53,7 +53,6 @@ namespace KwiatLuxeRESTAPI.Controllers
                 };
                 _db.OrderProducts.Add(orderProduct);
             }
-            //test
             Logger.Log(Severity.DEBUG, $"totalCost = {getUserCart.TotalAmount}");
             order.TotalAmount = getUserCart.TotalAmount;
             _db.Orders.Update(order);
