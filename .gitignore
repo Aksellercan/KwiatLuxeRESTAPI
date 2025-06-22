@@ -7,3 +7,5 @@ KwiatLuxeRESTAPI/bin/*
 .vs/*
 Logs/
 Logs/*
+Uploads/
+Uploads/*

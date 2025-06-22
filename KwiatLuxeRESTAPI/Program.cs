@@ -13,7 +13,7 @@ namespace KwiatLuxeRESTAPI
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-            
+
             //Custom Logger Settings
             var debugLoggerSettings = builder.Configuration["CustomLogger:DebugOutput"];
             if (debugLoggerSettings != null) Logger.setDebugOutput(bool.Parse(debugLoggerSettings));
@@ -23,7 +23,13 @@ namespace KwiatLuxeRESTAPI
             //API Options Configuration
             var cookieAppSettings = builder.Configuration["APIOptions:USE_COOKIES"];
             if (cookieAppSettings != null) SetAPIOptions.USE_COOKIES = bool.Parse(cookieAppSettings);
-            Logger.Log(Severity.INFO, "Cookie usage is " + (SetAPIOptions.USE_COOKIES ? "enabled":"disabled"));
+            Logger.Log(Severity.INFO, "Cookie usage is " + (SetAPIOptions.USE_COOKIES ? "enabled" : "disabled"));
+            if (SetAPIOptions.USE_COOKIES)
+            {
+                var cookieNameAppSettings = builder.Configuration["APIOptions:COOKIE_NAME"];
+                if (cookieNameAppSettings != null) SetAPIOptions.COOKIE_NAME = cookieNameAppSettings;
+                Logger.Log(Severity.INFO, $"Cookie name is configured as: {SetAPIOptions.COOKIE_NAME}");
+            }
             var hashAppSettings = builder.Configuration["APIOptions:SET_ITERATION_COUNT"];
             if (hashAppSettings != null) SetAPIOptions.SET_ITERATION_COUNT = int.Parse(hashAppSettings);
             Logger.Log(Severity.INFO, $"Password hashing iteration count set to {SetAPIOptions.SET_ITERATION_COUNT} " + (SetAPIOptions.SET_ITERATION_COUNT == 1 ? "iteration" : "iterations"));
@@ -54,10 +60,10 @@ namespace KwiatLuxeRESTAPI
                 });
                 c.AddSecurityRequirement(new OpenApiSecurityRequirement()
                 {
-                    { 
+                    {
                         new OpenApiSecurityScheme
                         {
-                            Reference = new OpenApiReference 
+                            Reference = new OpenApiReference
                             {
                             Type = ReferenceType.SecurityScheme,
                             Id = "Bearer"
@@ -107,7 +113,7 @@ namespace KwiatLuxeRESTAPI
                     },
                     OnMessageReceived = context =>
                     {
-                        var token = context.Request.Cookies["Identity"];
+                        var token = context.Request.Cookies[SetAPIOptions.COOKIE_NAME];
                         if (!string.IsNullOrEmpty(token))
                         {
                             context.Token = token;
@@ -167,7 +173,7 @@ namespace KwiatLuxeRESTAPI
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
-            builder.Services.AddAuthorization(options => 
+            builder.Services.AddAuthorization(options =>
             {
                 options.AddPolicy("RefreshToken", policy => policy.RequireClaim("Purpose", "RefreshToken"));
                 options.AddPolicy("AccessToken", policy => policy.RequireClaim("Purpose", "AccessToken"));
@@ -197,10 +203,11 @@ namespace KwiatLuxeRESTAPI
         }
     }
 
-    public static class SetAPIOptions 
+    public static class SetAPIOptions
     {
         //defaults
         public static bool USE_COOKIES = false;
+        public static string COOKIE_NAME = "Identity";
         public static int SET_ITERATION_COUNT = 100000;
         public static string DEFAULT_ROLE = "Customer";
         public static string SET_SPECIAL_ROLE = "Admin";

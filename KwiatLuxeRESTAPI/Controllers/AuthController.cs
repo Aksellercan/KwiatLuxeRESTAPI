@@ -36,7 +36,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         {
             if (removeCookie) 
             {
-                Response.Cookies.Delete("Identity", new CookieOptions
+                Response.Cookies.Delete(SetAPIOptions.COOKIE_NAME, new CookieOptions
                 {
                     HttpOnly = true,
                     Secure = false,
@@ -51,7 +51,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                     Logger.Log(Severity.ERROR, "Append Cookie Text Cannot be NULL");
                     return; 
                 }
-                Response.Cookies.Append("Identity", text, new CookieOptions
+                Response.Cookies.Append(SetAPIOptions.COOKIE_NAME, text, new CookieOptions
                 {
                     HttpOnly = true,
                     IsEssential = true,
