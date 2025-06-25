@@ -2,9 +2,9 @@
 {
     public enum BackgroundJobStatus
     {
-        Queued, 
+        Queued,
+        Processing,
         Completed, 
-        Processing, 
         Failed
     }
 }

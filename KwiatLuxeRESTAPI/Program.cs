@@ -183,14 +183,14 @@ namespace KwiatLuxeRESTAPI
             builder.Services.AddSwaggerGen();
 
             //singletons
-            //builder.Services.AddSingleton(_ =>
-            //{
-            //    var userChannel = Channel.CreateBounded<UserDetailsJob>(new BoundedChannelOptions(100)
-            //    {
-            //        FullMode = BoundedChannelFullMode.Wait
-            //    });
-            //    return userChannel;
-            //});
+            builder.Services.AddSingleton(_ =>
+            {
+                var registerChannel = Channel.CreateBounded<UserRegisterJob>(new BoundedChannelOptions(100)
+                {
+                    FullMode = BoundedChannelFullMode.Wait
+                });
+                return registerChannel;
+            });
 
             builder.Services.AddSingleton(pass => 
             {
@@ -204,9 +204,9 @@ namespace KwiatLuxeRESTAPI
                 return _userInformationService;
             });
 
-            //builder.Services.AddSingleton<ConcurrentDictionary<string, BackgroundJobStatus>>();
+            builder.Services.AddSingleton<ConcurrentDictionary<string, BackgroundJobStatus>>();
 
-            //builder.Services.AddHostedService<UserBackgroundService>();
+            builder.Services.AddHostedService<UserBackgroundService>();
 
             //Authorization Policies
             builder.Services.AddAuthorization(options =>

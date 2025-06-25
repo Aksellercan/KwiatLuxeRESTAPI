@@ -8,7 +8,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Concurrent;
+using System.Net;
 using System.Security.Claims;
+using System.Threading.Channels;
 
 namespace KwiatLuxeRESTAPI.Controllers
 {
@@ -23,11 +26,14 @@ namespace KwiatLuxeRESTAPI.Controllers
         private UserInformation _userInformation;
         private readonly IMemoryCache _memoryCache;
         private JWTValidation _jwtValidation;
-        //private Channel<UserDetailsJob> _userChannel;
-        //private ConcurrentDictionary<string, BackgroundJobStatus> _userStatus;
+        private Channel<UserRegisterJob> _registerChannel;
+        private ConcurrentDictionary<string, BackgroundJobStatus> _registerStatus;
 
-        public AuthController(KwiatLuxeDb db, IConfiguration config, IMemoryCache memoryCache, Password passwordService, UserInformation userInformation)
+        public AuthController(KwiatLuxeDb db, IConfiguration config, IMemoryCache memoryCache, Password passwordService, UserInformation userInformation, 
+            Channel<UserRegisterJob> registerChannel, ConcurrentDictionary<string, BackgroundJobStatus> registerStatus)
         {
+            _registerChannel = registerChannel;
+            _registerStatus = registerStatus;
             _db = db;
             _config = config;
             _memoryCache = memoryCache;
@@ -71,18 +77,30 @@ namespace KwiatLuxeRESTAPI.Controllers
         {
             var usernameCheck = await _db.Users.Where(u => u.Username == userRegister.Username).Select(u => new { u.Username }).FirstOrDefaultAsync();
             if (usernameCheck != null) return BadRequest(new { UserExists = $"User with username {usernameCheck.Username} already exists"});
-            byte[] salt = _passwordService.createSalt();
-            var user = new User
+            var processId = Guid.NewGuid().ToString();
+            var userRegisterJob = new UserRegisterJob
             {
-                Username = userRegister.Username,
-                Password = _passwordService.HashPassword(userRegister.Password, salt),
-                Salt = Convert.ToBase64String(salt),
-                Role = SetAPIOptions.DEFAULT_ROLE,
-                Email = userRegister.Email
+                Id = processId,
+                UserRegisterDto = userRegister,
+                Status = BackgroundJobStatus.Queued
             };
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
-            return Ok(new { registerStatus = $"User {user.Username} Registered Successfully"});
+            await _registerChannel.Writer.WriteAsync(userRegisterJob);
+            _registerStatus[processId] = BackgroundJobStatus.Queued;
+            var request = HttpContext.Request;
+            return Created($"{request.Scheme}://{request.Host}/Auth/registerQueue/{processId}",
+                new { processId = processId,
+                    processStatus = BackgroundJobStatus.Queued,
+                    queueHelper = "added to queue"});
+        }
+
+        [HttpGet("registerQueue/{processid}")]
+        public async Task<IActionResult> GetRegisterStatus([FromRoute]string processid) 
+        {
+            if (!_registerStatus.ContainsKey(processid)) 
+            {
+                return BadRequest(new { QueueError = $"Job Id {processid} does not exist."});
+            }
+            return Ok(new { JobId = processid, Status = _registerStatus[processid].ToString()});
         }
 
         [HttpPost("login")]
