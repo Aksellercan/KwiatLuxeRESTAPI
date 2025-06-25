@@ -8,9 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using System.Collections.Concurrent;
 using System.Security.Claims;
-using System.Threading.Channels;
 
 namespace KwiatLuxeRESTAPI.Controllers
 {
@@ -25,11 +23,10 @@ namespace KwiatLuxeRESTAPI.Controllers
         private UserInformation _userInformation;
         private readonly IMemoryCache _memoryCache;
         private JWTValidation _jwtValidation;
-        private Channel<UserDetailsJob> _userChannel;
-        private ConcurrentDictionary<string, BackgroundJobStatus> _userStatus;
+        //private Channel<UserDetailsJob> _userChannel;
+        //private ConcurrentDictionary<string, BackgroundJobStatus> _userStatus;
 
-        public AuthController(KwiatLuxeDb db, IConfiguration config, IMemoryCache memoryCache, 
-            Channel<UserDetailsJob> userChannel, ConcurrentDictionary<string, BackgroundJobStatus> userStatus, Password passwordService, UserInformation userInformation)
+        public AuthController(KwiatLuxeDb db, IConfiguration config, IMemoryCache memoryCache, Password passwordService, UserInformation userInformation)
         {
             _db = db;
             _config = config;
@@ -37,8 +34,6 @@ namespace KwiatLuxeRESTAPI.Controllers
             _jwtValidation = new(_config);
             _passwordService = passwordService;
             _userInformation = userInformation;
-            _userChannel = userChannel;
-            _userStatus = userStatus;
         }
 
         private void CookieOptions(string? text, bool removeCookie) 
@@ -106,7 +101,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                 CookieOptions(token, false);
                 return Ok(new { loginSuccess = "Logged in Successfully" });
             }
-            return Ok(new { AccessToken = token });
+            return Ok(new { AccessToken = token, ExpiresAt = DateTime.UtcNow.AddDays(1) });
         }
 
         [HttpPost("refreshToken")]
