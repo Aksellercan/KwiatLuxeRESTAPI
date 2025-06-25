@@ -8,7 +8,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Concurrent;
 using System.Security.Claims;
+using System.Threading.Channels;
 
 namespace KwiatLuxeRESTAPI.Controllers
 {
@@ -23,13 +25,18 @@ namespace KwiatLuxeRESTAPI.Controllers
         private UserInformation _userInformation = new();
         private readonly IMemoryCache _memoryCache;
         private JWTValidation _jwtValidation;
+        private Channel<PasswordHasherJob> _userChannel;
+        private ConcurrentDictionary<string, PasswordHasherEnum.Status> _userStatus;
 
-        public AuthController(KwiatLuxeDb db, IConfiguration config, IMemoryCache memoryCache)
+        public AuthController(KwiatLuxeDb db, IConfiguration config, IMemoryCache memoryCache, 
+            Channel<PasswordHasherJob> userChannel, ConcurrentDictionary<string, PasswordHasherEnum.Status> userStatus)
         {
             _db = db;
             _config = config;
             _memoryCache = memoryCache;
             _jwtValidation = new(_config);
+            _userChannel = userChannel;
+            _userStatus = userStatus;
         }
 
         private void CookieOptions(string? text, bool removeCookie) 
@@ -65,21 +72,29 @@ namespace KwiatLuxeRESTAPI.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] UserRegisterDTO userRegister)
         {
-            byte[] salt = _passwordService.createSalt(256);
-            string saltBase64tring = Convert.ToBase64String(salt);
-
-            var user = new User
+            byte[] salt = _passwordService.createSalt();
+            var processId = Guid.NewGuid().ToString();
+            var hashJob = new PasswordHasherJob 
             {
-                Username = userRegister.Username,
-                Password = userRegister.Password,
-                Salt = saltBase64tring,
-                Role =  SetAPIOptions.DEFAULT_ROLE,
-                Email = userRegister.Email
+                Id = processId,
+                Input = userRegister.Password,
+                Status = PasswordHasherEnum.Status.Queued
             };
-            user.Password = _passwordService.HashPassword(userRegister.Password, salt);
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
-            return Ok( new { Message = "User registered successfully" });
+            await _userChannel.Writer.WriteAsync(hashJob);
+            _userStatus[processId] = PasswordHasherEnum.Status.Queued;
+
+            Logger.Log(Severity.DEBUG, $"Job Id: {hashJob.Id}, input {hashJob.Input}, status {hashJob.Status}");
+            //var user = new User
+            //{
+            //    Username = userRegister.Username,
+            //    Password = _passwordService.HashPassword(userRegister.Password, salt),
+            //    Salt = Convert.ToBase64String(salt),
+            //    Role =  SetAPIOptions.DEFAULT_ROLE,
+            //    Email = userRegister.Email
+            //};
+            //_db.Users.Add(user);
+            //await _db.SaveChangesAsync();
+            return Ok(new { jobId = processId, JobStatus = PasswordHasherEnum.Status.Queued, Message = "User added to channel queue" });
         }
 
         [HttpPost("login")]
@@ -87,10 +102,10 @@ namespace KwiatLuxeRESTAPI.Controllers
         {
             // Get first matching user
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == userLogin.Username);
-            if (user == null) return NotFound("login error: User not found");
+            if (user == null) return NotFound(new { UserNotFound = "User not found" });
             // Retrieve saved Salt for comparing hashes
             byte[] salt = Convert.FromBase64String(user.Salt);
-            if (!_passwordService.CompareHashPassword(userLogin.Password, user.Password, salt)) return Unauthorized(new { UnAuthorized = "Wrong Login details"});
+            if (!await _passwordService.CompareHashPassword(userLogin.Password, user.Password, salt)) return Unauthorized(new { UnAuthorized = "Wrong Login details"});
 
             var token = _jwtValidation.GenerateAccessToken(user, 1);
             if (USE_COOKIES)
@@ -205,8 +220,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             {
                 return Unauthorized(new { UnAuthorized = "Unauthenticated or user not found" });
             }
-            UserDTO? userCache;
-            if (!_memoryCache.TryGetValue(claimCurrentUserId, out userCache))
+            if (!_memoryCache.TryGetValue(claimCurrentUserId, out UserDTO? userCache))
             {
                 var user = await _db.Users.Select(u => new
                 {

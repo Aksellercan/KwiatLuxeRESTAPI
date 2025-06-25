@@ -16,24 +16,26 @@ namespace KwiatLuxeRESTAPI.Services.Security.Password
             return hashedpassword;
         }
 
-        public byte[] createSalt(int bits) 
+        public byte[] createSalt() 
         {
-            byte[] test = RandomNumberGenerator.GetBytes(bits / 8);
+            byte[] test = RandomNumberGenerator.GetBytes(SetAPIOptions.SET_SALT_BIT_SIZE / 8);
             return test;
         }
 
-        public bool CompareHashPassword(string enteredPassword, string userPassword, byte[] salt) 
+        public async Task<bool> CompareHashPassword(string enteredPassword, string userPassword, byte[] salt) 
         {
-            string enteredPasswordHash = HashPassword(enteredPassword, salt);
+            string? enteredPasswordHash = await Task.Run(() => HashPassword(enteredPassword, salt));
+            if (enteredPasswordHash == null) return false;
             if (userPassword.Length != enteredPasswordHash.Length) return false;
+            bool success = false;
             for (int i = 0; i < enteredPasswordHash.Length; i++)
             {
                 if (userPassword[i] != enteredPasswordHash[i])
                 {
-                    return false;
+                    success = true;
                 }
             }
-            return true;
+            return success;
         }
     }
 }

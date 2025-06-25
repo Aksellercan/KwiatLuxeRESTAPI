@@ -8,7 +8,7 @@ namespace KwiatLuxeRESTAPI.Services.Security.Authorization
 {
     public class JWTValidation
     {
-        private IConfiguration _config;
+        private readonly IConfiguration _config;
 
         public JWTValidation(IConfiguration config) 
         {

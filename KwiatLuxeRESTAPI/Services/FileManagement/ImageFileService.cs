@@ -32,13 +32,13 @@ namespace KwiatLuxeRESTAPI.Services.FileManagement
         public void DeleteFile(string fileToDelete)
         {
             string fullPath = $"{Directory.GetParent(Directory.GetCurrentDirectory())}{Path.DirectorySeparatorChar}Uploads{Path.DirectorySeparatorChar}{fileToDelete}";
-            if (System.IO.File.Exists(fullPath))
+            if (File.Exists(fullPath))
             {
                 File.Delete(fullPath);
             }
             else
             {
-                throw new Exception("File Not Found");
+                throw new ArgumentNullException("File Not Found");
             }
         }
     }
