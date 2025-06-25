@@ -8,7 +8,7 @@ namespace KwiatLuxeRESTAPI.Services.Security.Authorization
 {
     public class JWTValidation
     {
-        private IConfiguration _config;
+        private readonly IConfiguration _config;
 
         public JWTValidation(IConfiguration config) 
         {
@@ -70,7 +70,7 @@ namespace KwiatLuxeRESTAPI.Services.Security.Authorization
             }
             catch (Exception e)
             {
-                throw new Exception($"When validating. Error details: ValidateToken() AuthController, {e}");
+                throw new Exception($"Error validating. Error details: {e}");
             }
         }
     }

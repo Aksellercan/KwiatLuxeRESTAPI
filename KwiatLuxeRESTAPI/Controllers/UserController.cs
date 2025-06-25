@@ -109,7 +109,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                     Logger.Log(Severity.DEBUG, "New Password is same as old one");
                     return BadRequest(new { Error = "New Password is same as old one" });
                 }
-                byte[] newSalt = _passwordService.createSalt(256);
+                byte[] newSalt = _passwordService.createSalt();
                 string saltBase64tring = Convert.ToBase64String(newSalt);
                 string newHashedPassword = _passwordService.HashPassword(newPassword, newSalt);
                 changePassword.Password = newHashedPassword;

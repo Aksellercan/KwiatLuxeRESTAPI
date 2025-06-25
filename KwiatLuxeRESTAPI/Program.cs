@@ -1,10 +1,16 @@
+using KwiatLuxeRESTAPI.Models;
+using KwiatLuxeRESTAPI.Services.BackgroundJobs;
+using KwiatLuxeRESTAPI.Services.Data;
 using KwiatLuxeRESTAPI.Services.Logger;
+using KwiatLuxeRESTAPI.Services.Security.Password;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
+using System.Collections.Concurrent;
 using System.Text;
+using System.Threading.Channels;
 
 namespace KwiatLuxeRESTAPI
 {
@@ -33,6 +39,9 @@ namespace KwiatLuxeRESTAPI
             var hashAppSettings = builder.Configuration["APIOptions:SET_ITERATION_COUNT"];
             if (hashAppSettings != null) SetAPIOptions.SET_ITERATION_COUNT = int.Parse(hashAppSettings);
             Logger.Log(Severity.INFO, $"Password hashing iteration count set to {SetAPIOptions.SET_ITERATION_COUNT} " + (SetAPIOptions.SET_ITERATION_COUNT == 1 ? "iteration" : "iterations"));
+            var saltAppSettings = builder.Configuration["APIOptions:SET_SALT_BIT_SIZE"];
+            if (saltAppSettings != null) SetAPIOptions.SET_SALT_BIT_SIZE = int.Parse(saltAppSettings);
+            Logger.Log(Severity.INFO, $"Password salt bit size set to {SetAPIOptions.SET_SALT_BIT_SIZE} " + (SetAPIOptions.SET_SALT_BIT_SIZE == 1 ? "bit" : "bits"));
             var roleAppSettings = builder.Configuration["APIOptions:DEFAULT_ROLE"];
             if (roleAppSettings != null) SetAPIOptions.DEFAULT_ROLE = roleAppSettings;
             Logger.Log(Severity.INFO, $"Default user role is configured as: {SetAPIOptions.DEFAULT_ROLE}");
@@ -162,7 +171,7 @@ namespace KwiatLuxeRESTAPI
                 });
             }
 
-            // Cors testing
+            // Cors Settings
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll",
@@ -173,6 +182,33 @@ namespace KwiatLuxeRESTAPI
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            //singletons
+            //builder.Services.AddSingleton(_ =>
+            //{
+            //    var userChannel = Channel.CreateBounded<UserDetailsJob>(new BoundedChannelOptions(100)
+            //    {
+            //        FullMode = BoundedChannelFullMode.Wait
+            //    });
+            //    return userChannel;
+            //});
+
+            builder.Services.AddSingleton(pass => 
+            {
+                Password _passwordService = new Password();
+                return _passwordService;
+            });
+
+            builder.Services.AddSingleton(user =>
+            {
+                UserInformation _userInformationService = new();
+                return _userInformationService;
+            });
+
+            //builder.Services.AddSingleton<ConcurrentDictionary<string, BackgroundJobStatus>>();
+
+            //builder.Services.AddHostedService<UserBackgroundService>();
+
+            //Authorization Policies
             builder.Services.AddAuthorization(options =>
             {
                 options.AddPolicy("RefreshToken", policy => policy.RequireClaim("Purpose", "RefreshToken"));
@@ -209,6 +245,7 @@ namespace KwiatLuxeRESTAPI
         public static bool USE_COOKIES = false;
         public static string COOKIE_NAME = "Identity";
         public static int SET_ITERATION_COUNT = 100000;
+        public static int SET_SALT_BIT_SIZE = 256;
         public static string DEFAULT_ROLE = "Customer";
         public static string SET_SPECIAL_ROLE = "Admin";
     }

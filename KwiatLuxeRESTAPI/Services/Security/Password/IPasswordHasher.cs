@@ -3,7 +3,7 @@
     public interface IPasswordHasher
     {
         string HashPassword(string password, byte[] salt);
-        byte[] createSalt(int bits);
+        byte[] createSalt();
         bool CompareHashPassword(string enteredPassword, string userPassword, byte[] salt);
     }
 }

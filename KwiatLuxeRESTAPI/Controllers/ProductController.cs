@@ -135,7 +135,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             {
                 var deleteProduct = await _db.Products.FindAsync(id);
                 if (deleteProduct == null) return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
-                if (deleteProduct.FileImageUrl != null) 
+                if (deleteProduct.FileImageUrl != null)
                 {
                     _imageFileService.DeleteFile(deleteProduct.FileImageUrl);
                 }
@@ -143,9 +143,9 @@ namespace KwiatLuxeRESTAPI.Controllers
                 await _db.SaveChangesAsync();
                 return NoContent();
             }
-            catch (Exception e) 
+            catch (Exception e)
             {
-                return BadRequest(new { error = $"Error: {e}" });
+                return BadRequest(new { error = $"Error: File not found. {e}" });
             }
         }
 
