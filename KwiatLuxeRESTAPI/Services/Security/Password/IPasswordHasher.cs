@@ -4,6 +4,6 @@
     {
         string HashPassword(string password, byte[] salt);
         byte[] createSalt();
-        bool CompareHashPassword(string enteredPassword, string userPassword, byte[] salt);
+        bool CompareHashPassword(string enteredPassword, string userPassword);
     }
 }

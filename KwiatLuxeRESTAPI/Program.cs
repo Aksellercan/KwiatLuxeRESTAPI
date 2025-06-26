@@ -1,6 +1,7 @@
 using KwiatLuxeRESTAPI.Models;
 using KwiatLuxeRESTAPI.Services.BackgroundJobs;
 using KwiatLuxeRESTAPI.Services.Data;
+using KwiatLuxeRESTAPI.Services.FileManagement;
 using KwiatLuxeRESTAPI.Services.Logger;
 using KwiatLuxeRESTAPI.Services.Security.Password;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -182,16 +183,26 @@ namespace KwiatLuxeRESTAPI
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
-            //singletons
+            //Channels
             builder.Services.AddSingleton(_ =>
             {
-                var registerChannel = Channel.CreateBounded<UserRegisterJob>(new BoundedChannelOptions(100)
+                var registerChannel = Channel.CreateBounded<UserRegisterJob>(new BoundedChannelOptions(1000)
                 {
                     FullMode = BoundedChannelFullMode.Wait
                 });
                 return registerChannel;
             });
 
+            builder.Services.AddSingleton(_ =>
+            {
+                var uploadChannel = Channel.CreateBounded<ImageUploadJob>(new BoundedChannelOptions(100)
+                {
+                    FullMode = BoundedChannelFullMode.Wait
+                });
+                return uploadChannel;
+            });
+
+            //Singletons
             builder.Services.AddSingleton(pass => 
             {
                 Password _passwordService = new Password();
@@ -204,9 +215,18 @@ namespace KwiatLuxeRESTAPI
                 return _userInformationService;
             });
 
+            builder.Services.AddSingleton(user =>
+            {
+                ImageFileService _imageUploadService = new();
+                return _imageUploadService;
+            });
+
+            //Concurrent Dictionary
             builder.Services.AddSingleton<ConcurrentDictionary<string, BackgroundJobStatus>>();
 
+            //Background Services
             builder.Services.AddHostedService<UserBackgroundService>();
+            builder.Services.AddHostedService<ImageUploadBackgroundService>();
 
             //Authorization Policies
             builder.Services.AddAuthorization(options =>

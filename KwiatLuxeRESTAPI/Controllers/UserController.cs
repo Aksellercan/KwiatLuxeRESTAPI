@@ -104,7 +104,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             try
             {
                 byte[] compareSalt = Convert.FromBase64String(changePassword.Salt);
-                if (_passwordService.CompareHashPassword(newPassword, changePassword.Password, compareSalt))
+                if (_passwordService.CompareHashPassword(_passwordService.HashPassword(newPassword, compareSalt), changePassword.Password))
                 {
                     Logger.Log(Severity.DEBUG, "New Password is same as old one");
                     return BadRequest(new { Error = "New Password is same as old one" });

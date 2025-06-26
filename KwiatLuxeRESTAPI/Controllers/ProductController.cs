@@ -1,12 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using KwiatLuxeRESTAPI.DTOs;
 using KwiatLuxeRESTAPI.Models;
-using KwiatLuxeRESTAPI.DTOs;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Caching.Memory;
-using KwiatLuxeRESTAPI.Services.Logger;
 using KwiatLuxeRESTAPI.Services.FileManagement;
+using KwiatLuxeRESTAPI.Services.Logger;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text;
+using System.Threading.Channels;
 
 namespace KwiatLuxeRESTAPI.Controllers
 {
@@ -16,10 +19,16 @@ namespace KwiatLuxeRESTAPI.Controllers
     {
         private readonly KwiatLuxeDb _db;
         private readonly IMemoryCache _memoryCache;
-        private ImageFileService _imageFileService = new();
+        private ImageFileService _imageFileService;
+        private Channel<ImageUploadJob> _uploadChannel;
+        private ConcurrentDictionary<string, BackgroundJobStatus> _uploadStatus;
 
-        public ProductController(KwiatLuxeDb db, IMemoryCache memoryCache)
+        public ProductController(KwiatLuxeDb db, IMemoryCache memoryCache,
+            Channel<ImageUploadJob> uploadChannel, ConcurrentDictionary<string, BackgroundJobStatus> uploadStatus, ImageFileService imageFileService)
         {
+            _imageFileService = imageFileService;
+            _uploadChannel = uploadChannel;
+            _uploadStatus = uploadStatus;
             _db = db;
             _memoryCache = memoryCache;
         }
@@ -27,7 +36,8 @@ namespace KwiatLuxeRESTAPI.Controllers
         [HttpGet("getAll")]
         public async Task<IActionResult> GetAllProducts()
         {
-            var productsArray = await _db.Products.Select(p => new {
+            var productsArray = await _db.Products.Select(p => new
+            {
                 p.Id,
                 p.ProductName,
                 p.ProductDescription,
@@ -44,8 +54,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         [HttpGet("get/{id}")]
         public async Task<IActionResult> GetProductById(int id)
         {
-            Product cacheProduct;
-            if (!_memoryCache.TryGetValue(id, out cacheProduct))
+            if (!_memoryCache.TryGetValue(id, out var cacheProduct))
             {
                 var product = await _db.Products.FindAsync(id);
                 if (product == null)
@@ -62,20 +71,29 @@ namespace KwiatLuxeRESTAPI.Controllers
             return Ok(cacheProduct);
         }
 
+        [HttpGet("imageuploadstatus/{processid}")]
+        public IActionResult GetImageUploadStatus(string processid)
+        {
+            if (!_uploadStatus.ContainsKey(processid))
+            {
+                return BadRequest(new { QueueError = $"Job Id {processid} does not exist." });
+            }
+            return Ok(new { JobId = processid, Status = _uploadStatus[processid].ToString() });
+        }
         [HttpGet("productimage/{id}")]
         public async Task<IActionResult> GetProductByIdImage(int id)
         {
             var product = await _db.Products.Select(p => new { p.Id, p.FileImageUrl }).Where(p => p.Id == id).FirstOrDefaultAsync();
             if (product == null) return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
             string fullPath = $"{Directory.GetParent(Directory.GetCurrentDirectory())}{Path.DirectorySeparatorChar}Uploads{Path.DirectorySeparatorChar}{product.FileImageUrl}";
-            if (System.IO.File.Exists(fullPath)) 
+            if (System.IO.File.Exists(fullPath))
             {
                 StringBuilder sb = new();
                 string ext = Path.GetExtension(fullPath);
-                if (ext[0] == '.') 
+                if (ext[0] == '.')
                 {
                     int count = 0;
-                    foreach (char c in ext) 
+                    foreach (char c in ext)
                     {
                         if (c == '.') continue;
                         sb.Append(c);
@@ -101,34 +119,42 @@ namespace KwiatLuxeRESTAPI.Controllers
             {
                 return BadRequest(new { FileError = "File size should not exceed 1 MB" });
             }
-            try 
+
+            if (productDto.FileImageUrl == null)
             {
-                string? createdImageName = null;
-                if (productDto.FileImageUrl != null)
-                {
-                    createdImageName = await _imageFileService.FileUpload(productDto.FileImageUrl);
-                }
                 var product = new Product
                 {
                     ProductName = productDto.ProductName,
                     ProductDescription = productDto.ProductDescription,
-                    ProductPrice = productDto.ProductPrice,
-                    FileImageUrl = createdImageName
+                    ProductPrice = productDto.ProductPrice
                 };
                 _db.Products.Add(product);
                 await _db.SaveChangesAsync();
                 return Created($"/add/{product.Id}", product);
             }
-            catch (Exception e)
+            var processId = Guid.NewGuid().ToString();
+            var imageUploadJob = new ImageUploadJob
             {
-                Logger.Log(Severity.ERROR, $"Error when uploading file: {e}");
-                return BadRequest(new { error = $"Error: {e}"});
-            }
+                Id = processId,
+                ProductDto = productDto,
+                FileUpload = productDto.FileImageUrl,
+                Status = BackgroundJobStatus.Queued
+            };
+            await _uploadChannel.Writer.WriteAsync(imageUploadJob);
+            _uploadStatus[processId] = BackgroundJobStatus.Queued;
+            var request = HttpContext.Request;
+            return Created($"{request.Scheme}://{request.Host}/Product/imageuploadstatus/{processId}",
+                            new
+                            {
+                                processId = processId,
+                                processStatus = BackgroundJobStatus.Queued,
+                                queueHelper = "File added to queue"
+                            });
         }
 
         [HttpDelete("delete/{id}")]
         [Authorize(Roles = "Admin", Policy = "AccessToken")]
-        public async Task<IActionResult> DeleteProduct([FromRoute] int id) 
+        public async Task<IActionResult> DeleteProduct([FromRoute] int id)
         {
             //check if product to delete exists
             try
@@ -157,7 +183,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             var updateProduct = await _db.Products.FindAsync(id);
             if (updateProduct == null) return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
             if ((updateProductDto.FileImageUrl != null) && (updateProductDto.FileImageUrl?.Length > 1 * 1024 * 1024)) return BadRequest(new { FileError = "File size should not exceed 1 MB" });
-            if (updateProductDto.ProductName != null) 
+            if (updateProductDto.ProductName != null)
             {
                 updateProduct.ProductName = updateProductDto.ProductName;
             }

@@ -22,15 +22,14 @@ namespace KwiatLuxeRESTAPI.Services.Security.Password
             return test;
         }
 
-        public bool CompareHashPassword(string enteredPassword, string userPassword, byte[] salt) 
+        public bool CompareHashPassword(string enteredPassword, string userPassword) 
         {
-            string? enteredPasswordHash = HashPassword(enteredPassword, salt);
-            if (enteredPasswordHash == null) return false;
-            if (userPassword.Length != enteredPasswordHash.Length) return false;
+            if (enteredPassword == null) return false;
+            if (userPassword.Length != enteredPassword.Length) return false;
             bool success = false;
-            for (int i = 0; i < enteredPasswordHash.Length; i++)
+            for (int i = 0; i < enteredPassword.Length; i++)
             {
-                if (userPassword[i] == enteredPasswordHash[i])
+                if (userPassword[i] == enteredPassword[i])
                 {
                     success = true;
                 }

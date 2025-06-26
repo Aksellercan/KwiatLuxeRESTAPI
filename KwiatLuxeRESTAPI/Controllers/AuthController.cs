@@ -94,13 +94,13 @@ namespace KwiatLuxeRESTAPI.Controllers
         }
 
         [HttpGet("registerQueue/{processid}")]
-        public async Task<IActionResult> GetRegisterStatus([FromRoute]string processid) 
+        public IActionResult GetRegisterStatus([FromRoute] string processid)
         {
-            if (!_registerStatus.ContainsKey(processid)) 
+            if (!_registerStatus.ContainsKey(processid))
             {
-                return BadRequest(new { QueueError = $"Job Id {processid} does not exist."});
+                return BadRequest(new { QueueError = $"Job Id {processid} does not exist." });
             }
-            return Ok(new { JobId = processid, Status = _registerStatus[processid].ToString()});
+            return Ok(new { JobId = processid, Status = _registerStatus[processid].ToString() });
         }
 
         [HttpPost("login")]
@@ -111,8 +111,10 @@ namespace KwiatLuxeRESTAPI.Controllers
             if (user == null) return NotFound(new { UserNotFound = "User not found" });
             // Retrieve saved Salt for comparing hashes
             byte[] salt = Convert.FromBase64String(user.Salt);
-            if (!_passwordService.CompareHashPassword(userLogin.Password, user.Password, salt)) return Unauthorized(new { UnAuthorized = "Wrong Login details"});
-
+            if (!_passwordService.CompareHashPassword(_passwordService.HashPassword(userLogin.Password, salt), user.Password))
+            {
+                return Unauthorized(new { UnAuthorized = "Wrong Login details" });
+            }
             var token = _jwtValidation.GenerateAccessToken(user, 1);
             if (USE_COOKIES)
             {
