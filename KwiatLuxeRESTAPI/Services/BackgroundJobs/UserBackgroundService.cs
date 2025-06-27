@@ -17,11 +17,8 @@ namespace KwiatLuxeRESTAPI.Services.BackgroundJobs
 
         protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("at ExecuteAsync");
             while (!cancellationToken.IsCancellationRequested)
             {
-                _logger.LogInformation("passed while loop");
-
                 await foreach (var job in _jobChannel.Reader.ReadAllAsync(cancellationToken))
                 {
                     try

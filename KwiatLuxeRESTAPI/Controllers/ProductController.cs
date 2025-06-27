@@ -1,13 +1,11 @@
 ﻿using KwiatLuxeRESTAPI.DTOs;
 using KwiatLuxeRESTAPI.Models;
 using KwiatLuxeRESTAPI.Services.FileManagement;
-using KwiatLuxeRESTAPI.Services.Logger;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Text;
 using System.Threading.Channels;
 
@@ -80,6 +78,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             }
             return Ok(new { JobId = processid, Status = _uploadStatus[processid].ToString() });
         }
+
         [HttpGet("productimage/{id}")]
         public async Task<IActionResult> GetProductByIdImage(int id)
         {

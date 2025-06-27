@@ -1,9 +1,7 @@
 ﻿using KwiatLuxeRESTAPI.DTOs;
 using KwiatLuxeRESTAPI.Models;
 using KwiatLuxeRESTAPI.Services.FileManagement;
-using KwiatLuxeRESTAPI.Services.Logger;
 using System.Collections.Concurrent;
-using System.Threading;
 using System.Threading.Channels;
 
 namespace KwiatLuxeRESTAPI.Services.BackgroundJobs
