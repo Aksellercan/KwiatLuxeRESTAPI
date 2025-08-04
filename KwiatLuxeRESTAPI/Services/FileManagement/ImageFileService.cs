@@ -1,6 +1,4 @@
-﻿using KwiatLuxeRESTAPI.Models;
-
-namespace KwiatLuxeRESTAPI.Services.FileManagement
+﻿namespace KwiatLuxeRESTAPI.Services.FileManagement
 {
     public class ImageFileService
     {
@@ -8,7 +6,7 @@ namespace KwiatLuxeRESTAPI.Services.FileManagement
         {
             if (imageFile == null)
             {
-                throw new ArgumentNullException("Image is NULL");
+                throw new ArgumentNullException(nameof(imageFile), "Image is NULL");
             }
             string[] allowedExtensions = { ".jpeg", ".jpg", ".png" };
             bool allowed = false;
@@ -38,7 +36,7 @@ namespace KwiatLuxeRESTAPI.Services.FileManagement
             }
             else
             {
-                throw new ArgumentNullException("File Not Found");
+                throw new ArgumentNullException(nameof(fullPath),"File Not Found");
             }
         }
     }

@@ -15,26 +15,17 @@ namespace KwiatLuxeRESTAPI.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class AuthController : ControllerBase
+    public class AuthController(
+        KwiatLuxeDb db,
+        IConfiguration config,
+        IMemoryCache memoryCache,
+        Password passwordService,
+        Channel<UserRegisterJob> registerChannel,
+        ConcurrentDictionary<string, BackgroundJobStatus> registerStatus)
+        : ControllerBase
     {
-        private readonly KwiatLuxeDb _db;
-        private readonly Password _passwordService;
         private readonly bool _useCookies = SetApiOptions.UseCookies;
-        private readonly IMemoryCache _memoryCache;
-        private readonly JWTValidation _jwtValidation;
-        private readonly Channel<UserRegisterJob> _registerChannel;
-        private readonly ConcurrentDictionary<string, BackgroundJobStatus> _registerStatus;
-
-        public AuthController(KwiatLuxeDb db, IConfiguration config, IMemoryCache memoryCache, Password passwordService,
-            Channel<UserRegisterJob> registerChannel, ConcurrentDictionary<string, BackgroundJobStatus> registerStatus)
-        {
-            _registerChannel = registerChannel;
-            _registerStatus = registerStatus;
-            _db = db;
-            _memoryCache = memoryCache;
-            _jwtValidation = new JWTValidation(config);
-            _passwordService = passwordService;
-        }
+        private readonly JWTValidation _jwtValidation = new(config);
 
         private void CookieOptions(string? text, bool removeCookie)
         {
@@ -70,7 +61,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] UserRegisterDTO userRegister)
         {
-            var usernameCheck = await _db.Users.Where(u => u.Username == userRegister.Username)
+            var usernameCheck = await db.Users.Where(u => u.Username == userRegister.Username)
                 .Select(u => new { u.Username }).FirstOrDefaultAsync();
             if (usernameCheck != null)
                 return BadRequest(new { UserExists = $"User with username {usernameCheck.Username} already exists" });
@@ -81,8 +72,8 @@ namespace KwiatLuxeRESTAPI.Controllers
                 UserRegisterDto = userRegister,
                 Status = BackgroundJobStatus.Queued
             };
-            await _registerChannel.Writer.WriteAsync(userRegisterJob);
-            _registerStatus[processId] = BackgroundJobStatus.Queued;
+            await registerChannel.Writer.WriteAsync(userRegisterJob);
+            registerStatus[processId] = BackgroundJobStatus.Queued;
             var request = HttpContext.Request;
             return Created($"{request.Scheme}://{request.Host}/Auth/registerQueue/{processId}",
                 new
@@ -96,23 +87,23 @@ namespace KwiatLuxeRESTAPI.Controllers
         [HttpGet("registerQueue/{processid}")]
         public IActionResult GetRegisterStatus([FromRoute] string processid)
         {
-            if (!_registerStatus.ContainsKey(processid))
+            if (!registerStatus.ContainsKey(processid))
             {
                 return BadRequest(new { QueueError = $"Job Id {processid} does not exist." });
             }
 
-            return Ok(new { JobId = processid, Status = _registerStatus[processid].ToString() });
+            return Ok(new { JobId = processid, Status = registerStatus[processid].ToString() });
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] UserLoginDTO userLogin)
         {
             // Get first matching user
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == userLogin.Username);
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Username == userLogin.Username);
             if (user == null) return NotFound(new { UserNotFound = "User not found" });
             // Retrieve saved Salt for comparing hashes
             byte[] salt = Convert.FromBase64String(user.Salt);
-            if (!_passwordService.CompareHashPassword(_passwordService.HashPassword(userLogin.Password, salt),
+            if (!passwordService.CompareHashPassword(passwordService.HashPassword(userLogin.Password, salt),
                     user.Password))
             {
                 return Unauthorized(new { UnAuthorized = "Wrong Login details" });
@@ -154,18 +145,18 @@ namespace KwiatLuxeRESTAPI.Controllers
                 return BadRequest(new { error = $"{e}" });
             }
 
-            var retrieveToken = await _db.Tokens.Where(t => t.UserId == parsedClaimId).FirstOrDefaultAsync();
+            var retrieveToken = await db.Tokens.Where(t => t.UserId == parsedClaimId).FirstOrDefaultAsync();
             if (retrieveToken is { RevokedAt: null })
             {
                 if (DateTime.UtcNow < retrieveToken.ExpiresAt)
                     return Ok(
                         new { refreshToken = retrieveToken.RefreshToken, expiresAt = retrieveToken.ExpiresAt });
-                _db.Tokens.Remove(retrieveToken);
-                await _db.SaveChangesAsync();
+                db.Tokens.Remove(retrieveToken);
+                await db.SaveChangesAsync();
                 return BadRequest(new { error = "Refresh Token Expired" });
             }
 
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == parsedClaimId);
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == parsedClaimId);
             if (user == null) return Unauthorized(new { UnAuthorized = "User not found." });
             var token = _jwtValidation.GenerateRefreshToken(user, 7); //7 day token
             if (_useCookies)
@@ -179,7 +170,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                 retrieveToken.ExpiresAt = DateTime.UtcNow.AddDays(7);
                 retrieveToken.RevokedAt = null;
                 retrieveToken.CreatedAt = DateTime.UtcNow;
-                _db.Tokens.Update(retrieveToken);
+                db.Tokens.Update(retrieveToken);
             }
             else
             {
@@ -190,10 +181,10 @@ namespace KwiatLuxeRESTAPI.Controllers
                     CreatedAt = DateTime.UtcNow,
                     ExpiresAt = DateTime.UtcNow.AddDays(7)
                 };
-                _db.Tokens.Add(tokenObj);
+                db.Tokens.Add(tokenObj);
             }
 
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
             return Ok(new { refreshToken = token, expiresAt = DateTime.UtcNow.AddDays(7) });
         }
 
@@ -204,7 +195,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             int? claimCurrentUserId = UserInformation.GetCurrentUserId(User);
             if (claimCurrentUserId == null)
                 return NotFound(new { UserNotFound = $"User with id {claimCurrentUserId} not found." });
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == claimCurrentUserId);
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == claimCurrentUserId);
             if (user == null)
                 return Unauthorized(new { UserNotFound = $"User with id {claimCurrentUserId} not found." });
             var token = _jwtValidation.GenerateAccessToken(user, 1); //return normal token 1 day
@@ -236,10 +227,10 @@ namespace KwiatLuxeRESTAPI.Controllers
                 return Unauthorized(new { UnAuthorized = "Unauthenticated or user not found" });
             }
 
-            if (_memoryCache.TryGetValue(claimCurrentUserId, out UserDTO? userCache))
+            if (memoryCache.TryGetValue(claimCurrentUserId, out UserDTO? userCache))
                 return Ok(new
                     { userInformation = userCache, detailsCached = true, cacheExpiresIn = DateTime.Now.AddMinutes(5) });
-            var user = await _db.Users.Select(u => new
+            var user = await db.Users.Select(u => new
             {
                 u.Id,
                 u.Username,
@@ -258,7 +249,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
             };
-            _memoryCache.Set(claimCurrentUserId, userCache, cacheEntryOptions);
+            memoryCache.Set(claimCurrentUserId, userCache, cacheEntryOptions);
 
             return Ok(new { userInformation = userCache, detailsCached = false });
         }

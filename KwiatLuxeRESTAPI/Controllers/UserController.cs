@@ -8,10 +8,9 @@ namespace KwiatLuxeRESTAPI.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class UserController(KwiatLuxeDb db) : ControllerBase
+    public class UserController(KwiatLuxeDb db, Password passwordService) : ControllerBase
     {
-        private readonly Password _passwordService = new Password();
-
+        
         [Authorize(Policy = "AccessToken")]
         [HttpDelete("removeuser")]
         public async Task<IActionResult> RemoveUser()
@@ -104,16 +103,16 @@ namespace KwiatLuxeRESTAPI.Controllers
             try
             {
                 byte[] compareSalt = Convert.FromBase64String(changePassword.Salt);
-                if (_passwordService.CompareHashPassword(_passwordService.HashPassword(newPassword, compareSalt),
+                if (passwordService.CompareHashPassword(passwordService.HashPassword(newPassword, compareSalt),
                         changePassword.Password))
                 {
                     Logger.INFO.Log("New Password is same as old one");
                     return BadRequest(new { Error = "New Password is same as old one" });
                 }
 
-                byte[] newSalt = _passwordService.createSalt();
+                byte[] newSalt = passwordService.createSalt();
                 string saltBase64String = Convert.ToBase64String(newSalt);
-                string newHashedPassword = _passwordService.HashPassword(newPassword, newSalt);
+                string newHashedPassword = passwordService.HashPassword(newPassword, newSalt);
                 changePassword.Password = newHashedPassword;
                 changePassword.Salt = saltBase64String;
                 await db.SaveChangesAsync();

@@ -81,12 +81,10 @@ namespace KwiatLuxeRESTAPI.Controllers
                 string ext = Path.GetExtension(fullPath);
                 if (ext[0] == '.')
                 {
-                    int count = 0;
                     foreach (char c in ext)
                     {
                         if (c == '.') continue;
                         sb.Append(c);
-                        count++;
                     }
                     ext = sb.ToString();
                 }
@@ -135,7 +133,7 @@ namespace KwiatLuxeRESTAPI.Controllers
             return Created($"{request.Scheme}://{request.Host}/Product/imageuploadstatus/{processId}",
                             new
                             {
-                                processId = processId,
+                                processId,
                                 processStatus = BackgroundJobStatus.Queued,
                                 queueHelper = "File added to queue"
                             });

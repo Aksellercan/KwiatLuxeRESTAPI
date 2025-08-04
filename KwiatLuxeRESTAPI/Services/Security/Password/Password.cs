@@ -8,7 +8,7 @@ namespace KwiatLuxeRESTAPI.Services.Security.Password
         public string HashPassword(string password, byte[] salt)
         {
             string hashedpassword = Convert.ToBase64String(KeyDerivation.Pbkdf2(
-                password: password!,
+                password: password,
                 salt: salt,
                 prf: KeyDerivationPrf.HMACSHA256,
                 iterationCount: SetApiOptions.SetIterationCount,

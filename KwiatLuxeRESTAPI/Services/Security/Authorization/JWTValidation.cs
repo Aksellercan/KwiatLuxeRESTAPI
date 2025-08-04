@@ -6,22 +6,21 @@ using System.Text;
 
 namespace KwiatLuxeRESTAPI.Services.Security.Authorization
 {
-    public class JWTValidation
+    public class JWTValidation(IConfiguration config)
     {
-        private readonly IConfiguration _config;
-
-        public JWTValidation(IConfiguration config) 
-        {
-            _config = config;
-        }
-
         public string GenerateAccessToken(User user, int expireDays)
         {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var getKey = config["Jwt:Key"];
+            if (getKey == null)
+            {
+                throw new Exception("JWT Key not set");
+            }
+
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(getKey));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
             var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
+                issuer: config["Jwt:Issuer"],
+                audience: config["Jwt:Audience"],
                 claims: new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.Username),
@@ -37,11 +36,16 @@ namespace KwiatLuxeRESTAPI.Services.Security.Authorization
 
         public string GenerateRefreshToken(User user, int expireDays)
         {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var getKey = config["Jwt:Key"];
+            if (getKey == null)
+            {
+                throw new Exception("JWT Key not set");
+            }
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(getKey));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
             var refreshToken = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
+            issuer: config["Jwt:Issuer"],
+            audience: config["Jwt:Audience"],
             claims: new List<Claim>
             {
                 new Claim(ClaimTypes.Name, user.Username),
@@ -59,13 +63,19 @@ namespace KwiatLuxeRESTAPI.Services.Security.Authorization
         {
             try
             {
-                SecurityToken validatedToken;
-                TokenValidationParameters validationParameters = new TokenValidationParameters();
-                validationParameters.ValidateLifetime = true;
-                validationParameters.ValidAudience = _config["Jwt:Audience"];
-                validationParameters.ValidIssuer = _config["Jwt:Issuer"];
-                validationParameters.IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
-                ClaimsPrincipal claimsPrincipal = new JwtSecurityTokenHandler().ValidateToken(jwtToken, validationParameters, out validatedToken);
+                var getKey = config["Jwt:Key"];
+                if (getKey == null)
+                {
+                    throw new Exception("JWT Key not set");
+                }
+                TokenValidationParameters validationParameters = new()
+                {
+                    ValidateLifetime = true,
+                    ValidAudience = config["Jwt:Audience"],
+                    ValidIssuer = config["Jwt:Issuer"],
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(getKey))
+                };
+                ClaimsPrincipal claimsPrincipal = new JwtSecurityTokenHandler().ValidateToken(jwtToken, validationParameters, out SecurityToken validatedToken);
                 return claimsPrincipal;
             }
             catch (Exception e)

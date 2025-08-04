@@ -91,6 +91,13 @@ namespace KwiatLuxeRESTAPI
             builder.Services.AddDbContext<KwiatLuxeDb>(opt => opt.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
             {
+                var getKey = builder.Configuration["Jwt:Key"];
+                if (getKey == null)
+                {
+                    Logger.ERROR.Log("JWT Key not set");
+                    return;
+                }
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
@@ -99,7 +106,7 @@ namespace KwiatLuxeRESTAPI
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = builder.Configuration["Jwt:Issuer"],
                     ValidAudience = builder.Configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(getKey))
                 };
                 options.Events = new JwtBearerEvents
                 {
