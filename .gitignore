@@ -1,4 +1,5 @@
 KwiatLuxeRESTAPI/KwiatLuxeRESTAPI.http
+KwiatLuxeRESTAPI/appsettings.json
 KwiatLuxeRESTAPI/obj/
 KwiatLuxeRESTAPI/obj/*
 KwiatLuxeRESTAPI/bin/
@@ -9,3 +10,6 @@ Logs/
 Logs/*
 Uploads/
 Uploads/*
+.idea/
+.idea/*
+KwiatLuxeRESTAPI/appsettings.json

@@ -13,28 +13,18 @@ namespace KwiatLuxeRESTAPI.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class ProductController : ControllerBase
+    public class ProductController(
+        KwiatLuxeDb db,
+        IMemoryCache memoryCache,
+        Channel<ImageUploadJob> uploadChannel,
+        ConcurrentDictionary<string, BackgroundJobStatus> uploadStatus,
+        ImageFileService imageFileService)
+        : ControllerBase
     {
-        private readonly KwiatLuxeDb _db;
-        private readonly IMemoryCache _memoryCache;
-        private ImageFileService _imageFileService;
-        private Channel<ImageUploadJob> _uploadChannel;
-        private ConcurrentDictionary<string, BackgroundJobStatus> _uploadStatus;
-
-        public ProductController(KwiatLuxeDb db, IMemoryCache memoryCache,
-            Channel<ImageUploadJob> uploadChannel, ConcurrentDictionary<string, BackgroundJobStatus> uploadStatus, ImageFileService imageFileService)
-        {
-            _imageFileService = imageFileService;
-            _uploadChannel = uploadChannel;
-            _uploadStatus = uploadStatus;
-            _db = db;
-            _memoryCache = memoryCache;
-        }
-
         [HttpGet("getAll")]
         public async Task<IActionResult> GetAllProducts()
         {
-            var productsArray = await _db.Products.Select(p => new
+            var productsArray = await db.Products.Select(p => new
             {
                 p.Id,
                 p.ProductName,
@@ -42,19 +32,19 @@ namespace KwiatLuxeRESTAPI.Controllers
                 p.ProductPrice,
                 p.FileImageUrl
             }).ToListAsync();
-            if (productsArray == null || !productsArray.Any())
+            if (productsArray.Count == 0)
             {
                 return NotFound(new { ProductNotFound = "No products found." });
             }
             return Ok(productsArray);
         }
 
-        [HttpGet("get/{id}")]
+        [HttpGet("get/{id:int}")]
         public async Task<IActionResult> GetProductById(int id)
         {
-            if (!_memoryCache.TryGetValue(id, out var cacheProduct))
+            if (!memoryCache.TryGetValue(id, out var cacheProduct))
             {
-                var product = await _db.Products.FindAsync(id);
+                var product = await db.Products.FindAsync(id);
                 if (product == null)
                 {
                     return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
@@ -64,7 +54,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15)
                 };
-                _memoryCache.Set(id, cacheProduct, cacheEntryOptions);
+                memoryCache.Set(id, cacheProduct, cacheEntryOptions);
             }
             return Ok(cacheProduct);
         }
@@ -72,17 +62,17 @@ namespace KwiatLuxeRESTAPI.Controllers
         [HttpGet("imageuploadstatus/{processid}")]
         public IActionResult GetImageUploadStatus(string processid)
         {
-            if (!_uploadStatus.ContainsKey(processid))
+            if (!uploadStatus.ContainsKey(processid))
             {
                 return BadRequest(new { QueueError = $"Job Id {processid} does not exist." });
             }
-            return Ok(new { JobId = processid, Status = _uploadStatus[processid].ToString() });
+            return Ok(new { JobId = processid, Status = uploadStatus[processid].ToString() });
         }
 
         [HttpGet("productimage/{id}")]
         public async Task<IActionResult> GetProductByIdImage(int id)
         {
-            var product = await _db.Products.Select(p => new { p.Id, p.FileImageUrl }).Where(p => p.Id == id).FirstOrDefaultAsync();
+            var product = await db.Products.Select(p => new { p.Id, p.FileImageUrl }).Where(p => p.Id == id).FirstOrDefaultAsync();
             if (product == null) return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
             string fullPath = $"{Directory.GetParent(Directory.GetCurrentDirectory())}{Path.DirectorySeparatorChar}Uploads{Path.DirectorySeparatorChar}{product.FileImageUrl}";
             if (System.IO.File.Exists(fullPath))
@@ -108,7 +98,7 @@ namespace KwiatLuxeRESTAPI.Controllers
 
         [HttpPost("add")]
         [Authorize(Roles = "Admin", Policy = "AccessToken")]
-        public async Task<IActionResult> AddProduct([FromForm] ProductDTO productDto)
+        public async Task<IActionResult> AddProduct([FromForm] ProductDTO? productDto)
         {
             if (productDto == null)
             {
@@ -127,8 +117,8 @@ namespace KwiatLuxeRESTAPI.Controllers
                     ProductDescription = productDto.ProductDescription,
                     ProductPrice = productDto.ProductPrice
                 };
-                _db.Products.Add(product);
-                await _db.SaveChangesAsync();
+                db.Products.Add(product);
+                await db.SaveChangesAsync();
                 return Created($"/add/{product.Id}", product);
             }
             var processId = Guid.NewGuid().ToString();
@@ -139,8 +129,8 @@ namespace KwiatLuxeRESTAPI.Controllers
                 FileUpload = productDto.FileImageUrl,
                 Status = BackgroundJobStatus.Queued
             };
-            await _uploadChannel.Writer.WriteAsync(imageUploadJob);
-            _uploadStatus[processId] = BackgroundJobStatus.Queued;
+            await uploadChannel.Writer.WriteAsync(imageUploadJob);
+            uploadStatus[processId] = BackgroundJobStatus.Queued;
             var request = HttpContext.Request;
             return Created($"{request.Scheme}://{request.Host}/Product/imageuploadstatus/{processId}",
                             new
@@ -158,14 +148,14 @@ namespace KwiatLuxeRESTAPI.Controllers
             //check if product to delete exists
             try
             {
-                var deleteProduct = await _db.Products.FindAsync(id);
+                var deleteProduct = await db.Products.FindAsync(id);
                 if (deleteProduct == null) return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
                 if (deleteProduct.FileImageUrl != null)
                 {
-                    _imageFileService.DeleteFile(deleteProduct.FileImageUrl);
+                    imageFileService.DeleteFile(deleteProduct.FileImageUrl);
                 }
-                _db.Remove(deleteProduct);
-                await _db.SaveChangesAsync();
+                db.Remove(deleteProduct);
+                await db.SaveChangesAsync();
                 return NoContent();
             }
             catch (Exception e)
@@ -179,7 +169,7 @@ namespace KwiatLuxeRESTAPI.Controllers
         public async Task<IActionResult> UpdateProduct([FromRoute] int id, [FromForm] UpdateProductDTO updateProductDto)
         {
             //check if product to update exists
-            var updateProduct = await _db.Products.FindAsync(id);
+            var updateProduct = await db.Products.FindAsync(id);
             if (updateProduct == null) return NotFound(new { ProductNotFound = $"Product with ID {id} not found." });
             if ((updateProductDto.FileImageUrl != null) && (updateProductDto.FileImageUrl?.Length > 1 * 1024 * 1024)) return BadRequest(new { FileError = "File size should not exceed 1 MB" });
             if (updateProductDto.ProductName != null)
@@ -199,12 +189,12 @@ namespace KwiatLuxeRESTAPI.Controllers
                 string? createdImageName = null;
                 if (updateProduct.FileImageUrl != null)
                 {
-                    _imageFileService.DeleteFile(updateProduct.FileImageUrl);
-                    createdImageName = await _imageFileService.FileUpload(updateProductDto.FileImageUrl);
+                    imageFileService.DeleteFile(updateProduct.FileImageUrl);
+                    createdImageName = await imageFileService.FileUpload(updateProductDto.FileImageUrl);
                 }
                 updateProduct.FileImageUrl = createdImageName;
             }
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
             return Ok(updateProduct);
         }
     }

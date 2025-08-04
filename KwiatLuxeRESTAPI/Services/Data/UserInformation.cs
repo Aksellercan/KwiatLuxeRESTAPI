@@ -1,51 +1,40 @@
-﻿namespace KwiatLuxeRESTAPI.Services.Data
+﻿using System.Security.Claims;
+
+namespace KwiatLuxeRESTAPI.Services.Data
 {
-    public class UserInformation
+    public static class UserInformation
     {
-        public int GetCurrentUserId(string? nameIdentifier) 
+        public static int? GetCurrentUserId(ClaimsPrincipal nameIdentifier)
         {
-            if (nameIdentifier == null) 
-            {
-                return -1;
-            }
-            return int.Parse(nameIdentifier);
-        }
-
-        public string? GetCurrentUsername(string? name)
-        {
-            if (name == null)
+            var identity = nameIdentifier.FindFirst(ClaimTypes.NameIdentifier);
+            if (identity == null)
             {
                 return null;
             }
-            return name;
+            return int.Parse(identity.Value);
         }
 
-        public string? GetCurrentMail(string? mail)
+        public static string? GetCurrentUsername(ClaimsPrincipal name)
         {
-            if (mail == null)
-            {
-                return null;
-            }
-            return mail;
+            return name.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
 
-        public string? getCurrentUserRole(string? role) 
+        public static string? GetCurrentMail(ClaimsPrincipal mail)
         {
-            if (role == null) 
-            {
-                return null; 
-            }
-
-            return role;
+            var identityMail = mail.FindFirst(ClaimTypes.NameIdentifier);
+            return identityMail?.Value;
         }
 
-        public bool IsAdmin(string? role) 
+        public static string? GetCurrentUserRole(ClaimsPrincipal role)
         {
-            if (role != null && role != "Admin") 
-            {
-                return false;
-            }
-            return true;
+            var identityRole = role.FindFirst(ClaimTypes.NameIdentifier);
+            return identityRole?.Value;
+        }
+
+        public static bool IsAdmin(ClaimsPrincipal role)
+        {
+            var identityAdmin = role.FindFirst(ClaimTypes.NameIdentifier);
+            return identityAdmin == null || identityAdmin.Value == "Admin";
         }
     }
 }

@@ -19,8 +19,6 @@ namespace KwiatLuxeRESTAPI.Services.BackgroundJobs
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                _logger.LogInformation("passed while loop");
-
                 await foreach (var job in _uploadChannel.Reader.ReadAllAsync(cancellationToken))
                 {
                     try

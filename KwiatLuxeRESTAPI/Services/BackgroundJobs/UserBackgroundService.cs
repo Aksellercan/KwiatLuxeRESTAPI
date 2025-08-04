@@ -54,7 +54,7 @@ namespace KwiatLuxeRESTAPI.Services.BackgroundJobs
                     Username = userRegisterDTO.Username,
                     Password = _password.HashPassword(userRegisterDTO.Password, salt),
                     Salt = Convert.ToBase64String(salt),
-                    Role = SetAPIOptions.DEFAULT_ROLE,
+                    Role = SetApiOptions.DefaultRole,
                     Email = userRegisterDTO.Email
                 };
                 dbcontext.Set<User>().Add(user);
