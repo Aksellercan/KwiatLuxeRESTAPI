@@ -13,3 +13,6 @@ Uploads/*
 .idea/
 .idea/*
 KwiatLuxeRESTAPI/appsettings.json
+
+#Temp
+KwiatLuxeRESTAPIMSTest/

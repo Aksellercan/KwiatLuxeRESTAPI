@@ -24,7 +24,8 @@ namespace KwiatLuxeRESTAPI.Services.BackgroundJobs
                     try
                     {
                         _uploadStatus[job.Id] = BackgroundJobStatus.Processing;
-                        string fileName = await ImageUpload(job.FileUpload);
+                        // string fileName = await ImageUpload(job.FileUpload);
+                        string fileName = await _imageFileService.FileUpload(job.FileUpload);
                         if (job.ProductDto == null) throw new NullReferenceException("Product Data is null");
                         await CreateProduct(fileName, job.ProductDto);
                         _uploadStatus[job.Id] = BackgroundJobStatus.Completed;
@@ -46,13 +47,11 @@ namespace KwiatLuxeRESTAPI.Services.BackgroundJobs
 
         private async Task<string> ImageUpload(IFormFile uploadedFile)
         {
-            string? createdImageName = null;
             if (uploadedFile == null)
             {
                 throw new NullReferenceException("File is null");
             }
-            createdImageName = await _imageFileService.FileUpload(uploadedFile);
-            return createdImageName;
+            return await _imageFileService.FileUpload(uploadedFile);
         }
 
         private async Task CreateProduct(string fileName, ProductDTO productDto)

@@ -14,7 +14,7 @@ namespace KwiatLuxeRESTAPI.Services.FileManagement
             bool allowed = false;
             foreach (string extension in allowedExtensions)
             {
-                if(string.Equals(Path.GetExtension(imageFile.FileName), extension)) allowed = true;
+                if(string.Equals((Path.GetExtension(imageFile.FileName)).ToLower(), extension)) allowed = true;
             }
             if(!allowed) throw new Exception($"Only allowed extensions are {string.Join(", ", allowedExtensions)}, what was uploaded: {Path.GetExtension(imageFile.FileName)}");
             var contentPath = $"{Directory.GetParent(Directory.GetCurrentDirectory())}{Path.DirectorySeparatorChar}Uploads";
