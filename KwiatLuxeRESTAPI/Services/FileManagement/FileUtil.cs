@@ -2,12 +2,12 @@
 {
     public class FileUtil
     {
-        private string fullPath = $"{Directory.GetParent(Directory.GetCurrentDirectory())}{Path.DirectorySeparatorChar}Logs";
+        private readonly string _fullPath = $"{Directory.GetParent(Directory.GetCurrentDirectory())}{Path.DirectorySeparatorChar}Logs";
         private void CreateFolders()
         {
             try
             {
-                Directory.CreateDirectory(fullPath);
+                Directory.CreateDirectory(_fullPath);
             }
             catch (Exception e) {
                 throw new Exception($"Cannot create folders {e}");
@@ -16,11 +16,7 @@
 
         private bool FolderExists()
         {
-            if (Directory.Exists(fullPath))
-            {
-                return true;
-            }
-            return false;
+            return Directory.Exists(_fullPath);
         }
 
         private string FilenameFormat()
@@ -37,7 +33,7 @@
                 {
                     CreateFolders();
                 }
-                StreamWriter streamWriter = new(fullPath + Path.DirectorySeparatorChar + FilenameFormat() + ".log", true);
+                StreamWriter streamWriter = new(_fullPath + Path.DirectorySeparatorChar + FilenameFormat() + ".log", true);
                 if (message == null)
                 {
                     throw new Exception("Message is null");

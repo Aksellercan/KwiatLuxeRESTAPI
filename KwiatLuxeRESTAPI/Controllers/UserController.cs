@@ -10,7 +10,7 @@ namespace KwiatLuxeRESTAPI.Controllers
     [Route("[controller]")]
     public class UserController(KwiatLuxeDb db, Password passwordService) : ControllerBase
     {
-        
+
         [Authorize(Policy = "AccessToken")]
         [HttpDelete("removeuser")]
         public async Task<IActionResult> RemoveUser()
@@ -110,7 +110,7 @@ namespace KwiatLuxeRESTAPI.Controllers
                     return BadRequest(new { Error = "New Password is same as old one" });
                 }
 
-                byte[] newSalt = passwordService.createSalt();
+                byte[] newSalt = passwordService.CreateSalt();
                 string saltBase64String = Convert.ToBase64String(newSalt);
                 string newHashedPassword = passwordService.HashPassword(newPassword, newSalt);
                 changePassword.Password = newHashedPassword;

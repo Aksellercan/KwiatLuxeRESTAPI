@@ -36,12 +36,15 @@ namespace KwiatLuxeRESTAPI
                 if (cookieNameAppSettings != null) SetApiOptions.CookieName = cookieNameAppSettings;
                 Logger.INFO.Log($"Cookie name is configured as: {SetApiOptions.CookieName}");
             }
+
             var hashAppSettings = builder.Configuration["APIOptions:SET_ITERATION_COUNT"];
             if (hashAppSettings != null) SetApiOptions.SetIterationCount = int.Parse(hashAppSettings);
-            Logger.INFO.Log($"Password hashing iteration count set to {SetApiOptions.SetIterationCount} " + (SetApiOptions.SetIterationCount == 1 ? "iteration" : "iterations"));
+            Logger.INFO.Log($"Password hashing iteration count set to {SetApiOptions.SetIterationCount} " +
+                            (SetApiOptions.SetIterationCount == 1 ? "iteration" : "iterations"));
             var saltAppSettings = builder.Configuration["APIOptions:SET_SALT_BIT_SIZE"];
             if (saltAppSettings != null) SetApiOptions.SetSaltBitSize = int.Parse(saltAppSettings);
-            Logger.INFO.Log($"Password salt bit size set to {SetApiOptions.SetSaltBitSize} " + (SetApiOptions.SetSaltBitSize == 1 ? "bit" : "bits"));
+            Logger.INFO.Log($"Password salt bit size set to {SetApiOptions.SetSaltBitSize} " +
+                            (SetApiOptions.SetSaltBitSize == 1 ? "bit" : "bits"));
             var roleAppSettings = builder.Configuration["APIOptions:DEFAULT_ROLE"];
             if (roleAppSettings != null) SetApiOptions.DefaultRole = roleAppSettings;
             Logger.INFO.Log($"Default user role is configured as: {SetApiOptions.DefaultRole}");
@@ -74,8 +77,8 @@ namespace KwiatLuxeRESTAPI
                         {
                             Reference = new OpenApiReference
                             {
-                            Type = ReferenceType.SecurityScheme,
-                            Id = "Bearer"
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
                             },
                             Scheme = "oauth2",
                             Name = "Bearer",
@@ -88,7 +91,8 @@ namespace KwiatLuxeRESTAPI
             //end configuration for swagger
 
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-            builder.Services.AddDbContext<KwiatLuxeDb>(opt => opt.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+            builder.Services.AddDbContext<KwiatLuxeDb>(opt =>
+                opt.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
             {
                 var getKey = builder.Configuration["Jwt:Key"];
@@ -131,6 +135,7 @@ namespace KwiatLuxeRESTAPI
                         {
                             context.Token = token;
                         }
+
                         return Task.CompletedTask;
                     },
                     OnChallenge = context =>
@@ -147,7 +152,8 @@ namespace KwiatLuxeRESTAPI
                         if (context.Response.HasStarted) return Task.CompletedTask;
                         context.Response.StatusCode = 403;
                         context.Response.ContentType = "application/json";
-                        var result = JsonConvert.SerializeObject(new { error = "You don't have access to this content" });
+                        var result =
+                            JsonConvert.SerializeObject(new { error = "You don't have access to this content" });
                         Logger.ERROR.Log("You lack the privileges to access this content");
                         return context.Response.WriteAsync(result);
                     }
@@ -189,7 +195,6 @@ namespace KwiatLuxeRESTAPI
                 });
                 return registerChannel;
             });
-
             builder.Services.AddSingleton(_ =>
             {
                 var uploadChannel = Channel.CreateBounded<ImageUploadJob>(new BoundedChannelOptions(100)

@@ -16,7 +16,7 @@ namespace KwiatLuxeRESTAPI.Services.Security.Password
             return hashedpassword;
         }
 
-        public byte[] createSalt()
+        public byte[] CreateSalt()
         {
             byte[] test = RandomNumberGenerator.GetBytes(SetApiOptions.SetSaltBitSize / 8);
             return test;

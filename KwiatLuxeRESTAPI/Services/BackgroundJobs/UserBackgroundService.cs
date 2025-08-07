@@ -43,7 +43,7 @@ namespace KwiatLuxeRESTAPI.Services.BackgroundJobs
             {
                 await using var scope = serviceProvider.CreateAsyncScope();
                 var dbcontext = scope.ServiceProvider.GetRequiredService<KwiatLuxeDb>();
-                byte[] salt = password.createSalt();
+                byte[] salt = password.CreateSalt();
                 var user = new User
                 {
                     Username = userRegisterDTO.Username,
